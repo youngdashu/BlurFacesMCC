@@ -97,6 +97,12 @@ dependencies {
     implementation("com.google.dagger:hilt-android:$hiltVersion")
     kapt("com.google.dagger:hilt-compiler:$hiltVersion")
 
+    implementation("androidx.activity:activity-compose:1.8.1")
+
+    // Coil
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

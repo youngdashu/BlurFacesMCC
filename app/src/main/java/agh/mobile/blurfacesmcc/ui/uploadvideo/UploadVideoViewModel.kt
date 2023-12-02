@@ -5,5 +5,5 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class UploadVideoViewModel @Inject constructor() : ViewModel() {
-}
+class UploadVideoViewModel @Inject constructor(
+) : ViewModel()
