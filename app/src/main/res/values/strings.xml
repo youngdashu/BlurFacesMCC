@@ -3,4 +3,5 @@
     <string name="uploadVideo">Upload video</string>
     <string name="myVideos">My videos</string>
     <string name="securitySettings">Security settings</string>
+    <string name="blur_faces">Blur faces</string>
 </resources>
