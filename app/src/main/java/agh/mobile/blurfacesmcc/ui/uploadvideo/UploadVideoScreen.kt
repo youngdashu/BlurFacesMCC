@@ -54,7 +54,7 @@ fun UploadVideoScreen(
         Button(
             onClick = {
                 launcher.launch(
-                    PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                    PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.VideoOnly)
                 )
             }
         ) {
