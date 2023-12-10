@@ -1,5 +1,7 @@
 package agh.mobile.blurfacesmcc.ui.myvideos
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,19 +19,23 @@ fun MyVideoElement(
     imageModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    context.contentResolver.takePersistableUriPermission(
+        Uri.parse(uri),
+        Intent.FLAG_GRANT_READ_URI_PERMISSION
+    )
+
+
     val model = ImageRequest.Builder(context)
-        .data(uri)
-        .videoFrameMillis(1000)
-        .decoderFactory { result, options, _ ->
-            VideoFrameDecoder(
-                result.source,
-                options
-            )
-        }
+        .data(Uri.parse(uri))
+        .allowHardware(false)
+        .videoFrameMillis(0)
+        .decoderFactory { result, options, _ -> VideoFrameDecoder(result.source, options) }
         .build()
+
 
     Row {
         AsyncImage(modifier = imageModifier, model = model, contentDescription = "")
         Text(text = fileName)
+
     }
 }

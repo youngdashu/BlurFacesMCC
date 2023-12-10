@@ -117,6 +117,10 @@ dependencies {
 
     // protobuf
     implementation("com.google.protobuf:protobuf-javalite:3.25.1")
+
+    // Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.33.2-alpha")
+
 }
 
 protobuf {

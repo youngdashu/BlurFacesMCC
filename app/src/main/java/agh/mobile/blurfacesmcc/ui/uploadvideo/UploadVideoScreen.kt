@@ -1,5 +1,6 @@
 package agh.mobile.blurfacesmcc.ui.uploadvideo
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -23,7 +24,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
+import coil.request.videoFrameMillis
+
 
 @Composable
 fun UploadVideoScreen(
@@ -58,12 +62,27 @@ fun UploadVideoScreen(
         }
 
         result?.let { image ->
+            uploadVideoViewModel.saveUploadedPhotoURI(image)
+            LocalContext.current.grantUriPermission(
+                LocalContext.current.packageName,
+                image,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+
             //Use Coil to display the selected image
             val painter = rememberAsyncImagePainter(
-                ImageRequest
-                    .Builder(LocalContext.current)
-                    .data(data = image)
+                ImageRequest.Builder(LocalContext.current)
+                    .data(image)
+                    .allowHardware(false)
+                    .videoFrameMillis(0)
+                    .decoderFactory { result, options, _ ->
+                        VideoFrameDecoder(
+                            result.source,
+                            options
+                        )
+                    }
                     .build()
+
             )
             Image(
                 painter = painter,
