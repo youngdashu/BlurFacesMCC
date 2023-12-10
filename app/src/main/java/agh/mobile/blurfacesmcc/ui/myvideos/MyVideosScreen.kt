@@ -44,20 +44,35 @@ fun MyVideosScreen(
             ) {
                 Column(modifier = Modifier.verticalScroll(scrollState)) {
                     Text(text = "Bluring in Progress", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
-                        text = "No videos in progress",
-                        style = MaterialTheme.typography.titleMedium
-                    )
 
-                    Text(text = "Blured Videos", style = MaterialTheme.typography.titleLarge)
-                    videoRecords.map { videoRecord ->
+                    videoRecords.filter { !it.blured }.map { videoRecord ->
                         MyVideoElement(
                             imageModifier = Modifier
                                 .width(100.dp)
                                 .height(100.dp),
                             fileName = videoRecord.filename,
-                            uri = videoRecord.uri
+                            uri = videoRecord.uri,
+                            backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                            textColor = MaterialTheme.colorScheme.secondary
+                        )
+                    }.ifEmpty {
+                        Text(
+                            modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
+                            text = "No videos in progress",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    Text(text = "Blured Videos", style = MaterialTheme.typography.titleLarge)
+                    videoRecords.filter { it.blured }.map { videoRecord ->
+                        MyVideoElement(
+                            imageModifier = Modifier
+                                .width(100.dp)
+                                .height(100.dp),
+                            fileName = videoRecord.filename,
+                            uri = videoRecord.uri,
+                            backgroundColor = MaterialTheme.colorScheme.primaryContainer,
+                            textColor = MaterialTheme.colorScheme.primary
                         )
                     }.ifEmpty {
                         Text(

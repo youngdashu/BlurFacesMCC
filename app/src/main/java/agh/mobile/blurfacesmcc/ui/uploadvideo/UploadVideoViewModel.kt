@@ -26,8 +26,10 @@ class UploadVideoViewModel @Inject constructor(
                         val nameIndex = cursor!!.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                         cursor.moveToFirst()
                         videos.toBuilder().addObjects(
-                            VideoRecord.getDefaultInstance().toBuilder().setUri(uri.toString())
+                            VideoRecord.getDefaultInstance().toBuilder()
+                                .setUri(uri.toString())
                                 .setFilename(cursor.getString(nameIndex))
+                                .setBlured(true)
                         ).build()
                     }
 

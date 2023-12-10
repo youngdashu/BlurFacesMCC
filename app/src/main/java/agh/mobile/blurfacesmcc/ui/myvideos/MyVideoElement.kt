@@ -6,11 +6,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -22,7 +22,9 @@ import coil.request.videoFrameMillis
 fun MyVideoElement(
     fileName: String,
     uri: String,
-    imageModifier: Modifier = Modifier
+    imageModifier: Modifier = Modifier,
+    backgroundColor: Color,
+    textColor: Color
 ) {
     val context = LocalContext.current
     context.contentResolver.takePersistableUriPermission(
@@ -42,12 +44,12 @@ fun MyVideoElement(
     Row(
         modifier = Modifier
             .padding(top = 20.dp, bottom = 20.dp)
-            .background(MaterialTheme.colorScheme.primaryContainer)
+            .background(backgroundColor)
             .padding(5.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(modifier = imageModifier, model = model, contentDescription = "")
-        Text(text = fileName)
+        Text(text = fileName, color = textColor)
     }
 }
