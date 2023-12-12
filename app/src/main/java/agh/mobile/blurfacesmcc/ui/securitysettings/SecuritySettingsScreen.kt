@@ -27,7 +27,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun SecuritySettingsScreen(
-    viewModel: SecuritySettingsViewModel = hiltViewModel()
+    viewModel: SecuritySettingsViewModel = hiltViewModel(),
+    navigateToConfidentialData: () -> Unit
 ) {
     var sliderSetting = viewModel.sliderValue.collectAsState()
 
@@ -49,7 +50,7 @@ fun SecuritySettingsScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                onClick = {}
+                onClick = navigateToConfidentialData
             ) {
                 Text(
                     style = MaterialTheme.typography.titleMedium,
