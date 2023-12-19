@@ -31,13 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
+import coil.request.videoFrameMillis
+
 
 @Composable
 fun UploadVideoScreen(
     uploadVideoViewModel: UploadVideoViewModel = hiltViewModel()
 ) {
-
     var result by remember {
         mutableStateOf<Uri?>(null)
     }
@@ -86,7 +88,7 @@ fun UploadVideoScreen(
 
     val context = LocalContext.current
 
-    if (showDialog) {
+    if (showDialog && (result != null)) {
         Dialog(onDismissRequest = { showDialog = false }) {
             Card {
                 Column(
@@ -94,21 +96,29 @@ fun UploadVideoScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.padding(16.dp)
                 ) {
-                    result?.let { image ->
-                        //Use Coil to display the selected image
-                        val painter = rememberAsyncImagePainter(
-                            ImageRequest
-                                .Builder(LocalContext.current)
-                                .data(data = image)
-                                .build()
-                        )
-                        Image(
-                            painter = painter,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(400.dp, 400.dp)
-                        )
-                    }
+                    //Use Coil to display the selected image
+                    val painter = rememberAsyncImagePainter(
+                        ImageRequest
+                            .Builder(LocalContext.current)
+                            .data(result)
+                            .allowHardware(false)
+                            .videoFrameMillis(0)
+                            .decoderFactory { result, options, _ ->
+                                VideoFrameDecoder(
+                                    result.source,
+                                    options
+                                )
+                            }
+                            .build()
+                    )
+                    Image(
+                        painter = painter,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(400.dp, 400.dp)
+                            .padding(16.dp)
+                    )
+
                     OutlinedTextField(
                         value = videoTitle,
                         onValueChange = { videoTitle = it },
@@ -117,6 +127,7 @@ fun UploadVideoScreen(
                         }
                     )
                     Button(onClick = {
+                        uploadVideoViewModel.saveUploadedPhotoURI(result!!)
                         uploadVideoViewModel.uploadVideoForProcessing(context, result!!)
                     }) {
                         Text(text = stringResource(id = R.string.blur_faces))
@@ -125,4 +136,5 @@ fun UploadVideoScreen(
             }
         }
     }
+
 }

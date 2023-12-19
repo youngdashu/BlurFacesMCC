@@ -4,6 +4,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
+    id("com.google.protobuf") version "0.9.1"
 }
 
 android {
@@ -101,8 +102,7 @@ dependencies {
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")
-
-
+    implementation("io.coil-kt:coil-video:2.5.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
@@ -111,4 +111,29 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    //Data store
+    implementation("androidx.datastore:datastore:1.0.0")
+
+    // protobuf
+    implementation("com.google.protobuf:protobuf-javalite:3.25.1")
+
+    // Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.33.2-alpha")
+
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.1"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
+    }
 }

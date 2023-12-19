@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_package = "agh.mobile.blurfacesmcc";
+option java_multiple_files = true;
+
+message VideoRecord {
+  string uri = 1;
+  string filename = 2;
+  bool blured = 3;
+}
+
+message Videos {
+  repeated VideoRecord objects = 1;
+}
+
