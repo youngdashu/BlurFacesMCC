@@ -9,16 +9,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,10 +42,16 @@ fun UploadVideoScreen(
         mutableStateOf<Uri?>(null)
     }
 
+    var showDialog by remember {
+        mutableStateOf(false)
+    }
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) {
         result = it
+        if (it != null)
+            showDialog = true
     }
 
 
@@ -57,21 +61,15 @@ fun UploadVideoScreen(
         )
     }
 
-    var showDialog by remember {
-        mutableStateOf(false)
-    }
-
     var videoTitle by remember {
         mutableStateOf("")
     }
 
-
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxHeight()
     ) {
-
-        Spacer(modifier = Modifier.height(40.dp))
-
         Row(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
@@ -91,30 +89,38 @@ fun UploadVideoScreen(
     if (showDialog) {
         Dialog(onDismissRequest = { showDialog = false }) {
             Card {
-                result?.let { image ->
-                    //Use Coil to display the selected image
-                    val painter = rememberAsyncImagePainter(
-                        ImageRequest
-                            .Builder(LocalContext.current)
-                            .data(data = image)
-                            .build()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    result?.let { image ->
+                        //Use Coil to display the selected image
+                        val painter = rememberAsyncImagePainter(
+                            ImageRequest
+                                .Builder(LocalContext.current)
+                                .data(data = image)
+                                .build()
+                        )
+                        Image(
+                            painter = painter,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(400.dp, 400.dp)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = videoTitle,
+                        onValueChange = { videoTitle = it },
+                        label = {
+                            Text(text = "Video name")
+                        }
                     )
-                    Image(
-                        painter = painter,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(400.dp, 400.dp)
-                            .padding(16.dp)
-                    )
-                }
-                OutlinedTextField(
-                    value = videoTitle,
-                    onValueChange = { videoTitle = it }
-                )
-                TextButton(onClick = {
-                    uploadVideoViewModel.uploadVideoForProcessing(context, result!!)
-                }) {
-                    Text(text = stringResource(id = R.string.blur_faces))
+                    Button(onClick = {
+                        uploadVideoViewModel.uploadVideoForProcessing(context, result!!)
+                    }) {
+                        Text(text = stringResource(id = R.string.blur_faces))
+                    }
                 }
             }
         }
