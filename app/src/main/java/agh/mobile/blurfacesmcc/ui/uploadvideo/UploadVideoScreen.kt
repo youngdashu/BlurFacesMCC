@@ -59,19 +59,22 @@ fun UploadVideoScreen(
 
         result?.let { image ->
             //Use Coil to display the selected image
-            val painter = rememberAsyncImagePainter(
-                ImageRequest
-                    .Builder(LocalContext.current)
-                    .data(data = image)
-                    .build()
-            )
-            Image(
-                painter = painter,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(400.dp, 400.dp)
-                    .padding(16.dp)
-            )
+//            val painter = rememberAsyncImagePainter(
+//                ImageRequest
+//                    .Builder(LocalContext.current)
+//                    .data(data = image)
+//                    .build()
+//            )
+
+            uploadVideoViewModel.dupa(LocalContext.current, image)
+
+//            Image(
+//                painter = painter,
+//                contentDescription = null,
+//                modifier = Modifier
+//                    .size(400.dp, 400.dp)
+//                    .padding(16.dp)
+//            )
         }
 
 
