@@ -5,4 +5,5 @@
     <string name="securitySettings">Security settings</string>
     <string name="confidential_data">Confidential data</string>
     <string name="security_level">Security level</string>
+    <string name="blur_faces">Blur faces</string>
 </resources>

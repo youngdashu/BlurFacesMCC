@@ -3,6 +3,7 @@ package agh.mobile.blurfacesmcc.ui.uploadvideo
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
@@ -16,7 +17,11 @@ class UploadVideoViewModel @Inject constructor(
     application: Application
 ) : AndroidViewModel(application) {
 
-    fun saveUploadedPhotoURI(uri: Uri) {
+    fun uploadVideoForProcessing(context: Context, uri: Uri) {
+
+    }
+
+    fun saveUploadedVideoURI(uri: Uri) {
         viewModelScope.launch {
             getApplication<Application>().videoDataStore.updateData { videos ->
                 getApplication<Application>()
