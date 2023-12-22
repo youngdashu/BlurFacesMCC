@@ -44,18 +44,11 @@ fun UploadVideoScreen(
         mutableStateOf<Uri?>(null)
     }
 
-    var showDialog by remember {
-        mutableStateOf(false)
-    }
-
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) {
         result = it
-        if (it != null)
-            showDialog = true
     }
-
 
     LaunchedEffect(null) {
         launcher.launch(
@@ -88,8 +81,8 @@ fun UploadVideoScreen(
 
     val context = LocalContext.current
 
-    if (showDialog && (result != null)) {
-        Dialog(onDismissRequest = { showDialog = false }) {
+    if (result != null) {
+        Dialog(onDismissRequest = { result = null }) {
             Card {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
