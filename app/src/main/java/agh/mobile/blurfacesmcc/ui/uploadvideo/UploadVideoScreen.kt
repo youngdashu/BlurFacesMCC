@@ -120,7 +120,7 @@ fun UploadVideoScreen(
                         }
                     )
                     Button(onClick = {
-                        uploadVideoViewModel.saveUploadedPhotoURI(result!!)
+                        uploadVideoViewModel.saveUploadedVideoURI(result!!)
                         uploadVideoViewModel.uploadVideoForProcessing(context, result!!)
                     }) {
                         Text(text = stringResource(id = R.string.blur_faces))

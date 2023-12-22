@@ -21,7 +21,7 @@ class UploadVideoViewModel @Inject constructor(
 
     }
 
-    fun saveUploadedPhotoURI(uri: Uri) {
+    fun saveUploadedVideoURI(uri: Uri) {
         viewModelScope.launch {
             getApplication<Application>().videoDataStore.updateData { videos ->
                 getApplication<Application>()
