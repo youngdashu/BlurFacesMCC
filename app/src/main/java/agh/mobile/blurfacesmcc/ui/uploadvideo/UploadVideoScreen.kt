@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.decode.VideoFrameDecoder
@@ -52,7 +51,7 @@ fun UploadVideoScreen(
 
     LaunchedEffect(null) {
         launcher.launch(
-            PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+            PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.VideoOnly)
         )
     }
 
@@ -72,17 +71,15 @@ fun UploadVideoScreen(
             Button(
                 onClick = {
                     launcher.launch(
-                        PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                        PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.VideoOnly)
                     )
                 }
             ) { Text(text = "Choose a media") }
         }
     }
 
-    val context = LocalContext.current
-
     if (result != null) {
-        Dialog(onDismissRequest = { result = null }) {
+//        Dialog(onDismissRequest = {}) {
             Card {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -121,13 +118,13 @@ fun UploadVideoScreen(
                     )
                     Button(onClick = {
                         uploadVideoViewModel.saveUploadedVideoURI(result!!)
-                        uploadVideoViewModel.uploadVideoForProcessing(context, result!!)
+                        uploadVideoViewModel.uploadVideoForProcessing(result!!, videoTitle)
                     }) {
                         Text(text = stringResource(id = R.string.blur_faces))
                     }
                 }
             }
-        }
+//        }
     }
 
 }

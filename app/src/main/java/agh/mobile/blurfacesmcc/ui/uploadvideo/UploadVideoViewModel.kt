@@ -1,9 +1,10 @@
 package agh.mobile.blurfacesmcc.ui.uploadvideo
 
 import agh.mobile.blurfacesmcc.VideoRecord
+import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
+import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import android.app.Application
-import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
@@ -14,11 +15,21 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UploadVideoViewModel @Inject constructor(
-    application: Application
+    private val application: Application,
+    private val videosRepository: DefaultVideosRepository
 ) : AndroidViewModel(application) {
 
-    fun uploadVideoForProcessing(context: Context, uri: Uri) {
-
+    fun uploadVideoForProcessing(uri: Uri, videoTitle: String) {
+        viewModelScope.launch {
+            val inputStream = getApplication<Application>()
+                .contentResolver
+                .openInputStream(uri)!!
+            val file = inputStream.readAllBytes()
+            inputStream.close()
+            videosRepository.processRemote(
+                UploadVideoRequest(file, videoTitle)
+            )
+        }
     }
 
     fun saveUploadedVideoURI(uri: Uri) {
