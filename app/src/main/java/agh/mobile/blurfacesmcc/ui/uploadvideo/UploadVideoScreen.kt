@@ -1,6 +1,7 @@
 package agh.mobile.blurfacesmcc.ui.uploadvideo
 
 import agh.mobile.blurfacesmcc.R
+import agh.mobile.blurfacesmcc.domain.RequestStatus
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -15,10 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,8 +40,12 @@ import coil.request.videoFrameMillis
 
 @Composable
 fun UploadVideoScreen(
+    navigateToHomePage: () -> Unit,
     uploadVideoViewModel: UploadVideoViewModel = hiltViewModel()
 ) {
+    val uploadStatus by uploadVideoViewModel.uploadStatus.collectAsState()
+    val context = LocalContext.current
+
     var result by remember {
         mutableStateOf<Uri?>(null)
     }
@@ -116,11 +123,24 @@ fun UploadVideoScreen(
                             Text(text = "Video name")
                         }
                     )
-                    Button(onClick = {
-                        uploadVideoViewModel.saveUploadedVideoURI(result!!)
-                        uploadVideoViewModel.uploadVideoForProcessing(result!!, videoTitle)
-                    }) {
+                    Button(
+                        enabled = uploadStatus != RequestStatus.WAITING,
+                        onClick = {
+                            uploadVideoViewModel.saveUploadedVideoURI(result!!)
+                            uploadVideoViewModel.uploadVideoForProcessing(
+                                result!!,
+                                videoTitle,
+                                navigateToHomePage
+                            )
+                        }) {
                         Text(text = stringResource(id = R.string.blur_faces))
+                        if (uploadStatus == RequestStatus.WAITING) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .padding(start = 10.dp)
+                                    .size(20.dp),
+                            )
+                        }
                     }
                 }
             }

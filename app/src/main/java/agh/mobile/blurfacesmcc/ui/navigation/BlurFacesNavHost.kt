@@ -43,7 +43,9 @@ fun BlurFacesNavHost(
         composable(
             BlurFacesDestinations.UPLOAD_VIDEO
         ) {
-            UploadVideoScreen()
+            UploadVideoScreen(
+                navigateToHomePage = navController::navigateToHomePage
+            )
         }
 
         composable(
