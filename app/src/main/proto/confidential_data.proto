@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option java_package = "agh.mobile.blurfacesmcc";
+option java_multiple_files = true;
+
+message ConfidentialData {
+  string uri = 1;
+  string filename = 2;
+}
+
+message ConfidentialDataArray {
+  repeated ConfidentialData objects = 1;
+}
