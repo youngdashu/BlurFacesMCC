@@ -33,6 +33,14 @@ class ConfidentialDataViewModel @Inject constructor(
 
     }
 
+    fun deleteElement(element: Int) {
+        viewModelScope.launch {
+            getApplication<Application>().confidentialDataArrayStore.updateData { array ->
+                array.toBuilder().removeObjects(element).build()
+            }
+        }
+    }
+
     fun saveUri(uri: Uri) {
         viewModelScope.launch {
             getApplication<Application>().confidentialDataArrayStore.updateData { array ->
