@@ -6,4 +6,5 @@
     <string name="confidential_data">Confidential data</string>
     <string name="security_level">Security level</string>
     <string name="blur_faces">Blur faces</string>
+    <string name="cancel">Cancel</string>
 </resources>
