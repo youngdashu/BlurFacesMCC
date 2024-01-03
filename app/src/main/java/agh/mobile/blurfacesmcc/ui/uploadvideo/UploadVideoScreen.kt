@@ -146,6 +146,7 @@ fun UploadVideoScreen(
                             Button(
                                 enabled = uploadStatus != RequestStatus.WAITING,
                                 onClick = {
+                                    //uploadVideoViewModel.extractFacesFromVideo(result!!)
                                     uploadVideoViewModel.saveUploadedVideoURI(result!!)
                                     uploadVideoViewModel.uploadVideoForProcessing(
                                         result!!,

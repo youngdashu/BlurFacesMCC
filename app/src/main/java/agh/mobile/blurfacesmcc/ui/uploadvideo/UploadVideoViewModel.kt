@@ -1,44 +1,39 @@
 package agh.mobile.blurfacesmcc.ui.uploadvideo
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.net.Uri
-import androidx.lifecycle.ViewModel
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetectorOptions
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.domain.RequestStatus
 import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import android.app.Application
-import android.provider.OpenableColumns
-import android.widget.Toast
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import java.io.IOException
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import javax.inject.Inject
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.media.MediaMetadataRetriever
-import androidx.core.net.toFile
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Log
+import android.widget.Toast
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImagePainter
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
+import javax.inject.Inject
 
 @HiltViewModel
 class UploadVideoViewModel @Inject constructor(
     private val application: Application,
     private val videosRepository: DefaultVideosRepository
 ) : AndroidViewModel(application) {
-    fun dupa(context: Context, img_uri: Uri) {
+    fun extractFacesFromVideo(videoUri: Uri) {
 
         viewModelScope.launch(Dispatchers.Default) {
             val highAccuracyOpts = FaceDetectorOptions.Builder()
@@ -49,11 +44,13 @@ class UploadVideoViewModel @Inject constructor(
 
             val retriever = MediaMetadataRetriever()
             try {
-                println(img_uri.isAbsolute)
-                retriever.setDataSource(context, img_uri)
+                println(videoUri.isAbsolute)
+                retriever.setDataSource(getApplication(), videoUri)
 
                 // Get the duration of the video in milliseconds
-                val frames = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)?.toLong() ?: 0
+                val frames =
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)
+                        ?.toLong() ?: 0
 
                 // Specify the interval to capture frames (e.g., every 1000 ms)
                 val frameInterval = 30
@@ -69,7 +66,7 @@ class UploadVideoViewModel @Inject constructor(
                     val detector = FaceDetection.getClient(highAccuracyOpts)
                     val result = detector.process(img)
                         .addOnSuccessListener { faces ->
-                            println("dupa " + faces.size)
+                            Log.d("xdd", faces.size.toString())
                             // Task completed successfully
                             // ...
                         }
@@ -100,10 +97,6 @@ class UploadVideoViewModel @Inject constructor(
 
         return bitmap
     }
-}
-    private val application: Application,
-    private val videosRepository: DefaultVideosRepository
-) : AndroidViewModel(application) {
 
     val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
 
