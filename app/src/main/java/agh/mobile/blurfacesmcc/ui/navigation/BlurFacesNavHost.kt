@@ -3,6 +3,7 @@ package agh.mobile.blurfacesmcc.ui.navigation
 import agh.mobile.blurfacesmcc.ui.homePage.HomePage
 import agh.mobile.blurfacesmcc.ui.myvideos.MyVideosScreen
 import agh.mobile.blurfacesmcc.ui.securitysettings.SecuritySettingsScreen
+import agh.mobile.blurfacesmcc.ui.securitysettings.confidentialData.ConfidentialDataScreen
 import agh.mobile.blurfacesmcc.ui.uploadvideo.UploadVideoScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -42,13 +43,23 @@ fun BlurFacesNavHost(
         composable(
             BlurFacesDestinations.UPLOAD_VIDEO
         ) {
-            UploadVideoScreen()
+            UploadVideoScreen(
+                navigateToHomePage = navController::navigateToHomePage
+            )
         }
 
         composable(
             BlurFacesDestinations.SECURITY_SETTINGS
         ) {
-            SecuritySettingsScreen()
+            SecuritySettingsScreen(
+                navigateToConfidentialData = navController::navigateToConfidentialData
+            )
+        }
+
+        composable(
+            BlurFacesDestinations.CONFIDENTIAL_DATA
+        ) {
+            ConfidentialDataScreen()
         }
 
     }
@@ -66,14 +77,15 @@ fun NavHostController.navigateSingleTopTo(destination: String) =
     }
 
 
-fun NavHostController.navigateToHomePage()
-    = navigateSingleTopTo(BlurFacesDestinations.HOME_PAGE)
+fun NavHostController.navigateToHomePage() = navigateSingleTopTo(BlurFacesDestinations.HOME_PAGE)
 
-fun NavHostController.navigateToUploadVideo()
-        = navigateSingleTopTo(BlurFacesDestinations.UPLOAD_VIDEO)
+fun NavHostController.navigateToUploadVideo() =
+    navigateSingleTopTo(BlurFacesDestinations.UPLOAD_VIDEO)
 
-fun NavHostController.navigateToMyVideos()
-        = navigateSingleTopTo(BlurFacesDestinations.MY_VIDEOS)
+fun NavHostController.navigateToMyVideos() = navigateSingleTopTo(BlurFacesDestinations.MY_VIDEOS)
 
-fun NavHostController.navigateToSecuritySettings()
-        = navigateSingleTopTo(BlurFacesDestinations.SECURITY_SETTINGS)
+fun NavHostController.navigateToSecuritySettings() =
+    navigateSingleTopTo(BlurFacesDestinations.SECURITY_SETTINGS)
+
+fun NavHostController.navigateToConfidentialData() =
+    navigate(BlurFacesDestinations.CONFIDENTIAL_DATA)
