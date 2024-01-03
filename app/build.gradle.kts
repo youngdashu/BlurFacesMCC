@@ -121,6 +121,9 @@ dependencies {
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.33.2-alpha")
 
+    //Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
 }
 
 protobuf {
