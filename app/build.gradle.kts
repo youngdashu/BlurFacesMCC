@@ -66,6 +66,8 @@ dependencies {
 
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
+    implementation("com.github.israel-fl:bitmap2video:2.0.0")
+
     val lifecycle_version = "2.6.2"
     //LIFECYCLE
     // ViewModel
