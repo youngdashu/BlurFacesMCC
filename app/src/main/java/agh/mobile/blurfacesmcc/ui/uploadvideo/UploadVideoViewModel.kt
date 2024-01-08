@@ -5,171 +5,93 @@ import agh.mobile.blurfacesmcc.domain.RequestStatus
 import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
-import android.R
+import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
-import android.media.MediaMetadataRetriever
-import android.media.MediaMuxer
 import android.net.Uri
-import android.os.Environment
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.vision.common.InputImage
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkManager
+import androidx.work.await
+import androidx.work.workDataOf
 import com.google.mlkit.vision.face.Face
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetectorOptions
-import com.homesoft.encoder.FrameBuilder
-import com.homesoft.encoder.Muxer
-import com.homesoft.encoder.MuxerConfig
-import com.homesoft.encoder.MuxingError
-import com.homesoft.encoder.MuxingResult
-import com.homesoft.encoder.MuxingSuccess
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
-import java.util.ArrayList
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletableFuture.allOf
 import javax.inject.Inject
 
+
+data class FacesAtFrame(
+    val faces: List<Face>,
+    val frameIndex: Int,
+    val frame: Bitmap
+)
 
 @HiltViewModel
 class UploadVideoViewModel @Inject constructor(
     private val application: Application,
     private val videosRepository: DefaultVideosRepository
 ) : AndroidViewModel(application) {
-    fun extractFacesFromVideo(videoUri: Uri) {
 
-        viewModelScope.launch(Dispatchers.Default) {
-            val highAccuracyOpts = FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-                .build()
+    val videoTitle = MutableStateFlow("")
+    val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
 
-            val retriever = MediaMetadataRetriever()
-            try {
-                println(videoUri.isAbsolute)
-                retriever.setDataSource(getApplication(), videoUri)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val processingProgress = WorkManager.getInstance(application)
+        .getWorkInfosByTagFlow("localBlur")
+        .mapLatest {
+            it.firstOrNull()?.progress?.getFloat(LocalBlurWorker.Progress, 0f) ?: 0f
+        }
 
-                // Get the duration of the video in milliseconds
-                val frames =
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)
-                        ?.toLong() ?: 0
 
-                // Specify the interval to capture frames (e.g., every 1000 ms)
-                val frameInterval = 1
+    fun extractFacesFromVideo(videoUri: Uri, onFinish: (String?) -> Unit) {
 
-                val processingFutures = mutableListOf<CompletableFuture<Bitmap>>()
-                val allTasksComplete = allOf(*processingFutures.toTypedArray())
+        updateUploadStatus(RequestStatus.WAITING)
 
-                // Iterate over the duration of the video with the specified interval
-                for (frame in 0 until frames step frameInterval.toLong()) {
-                    val processingFuture = CompletableFuture<Bitmap>()
-                    // Get the frame at the current time
-                    val frame = retriever.getFrameAtIndex(frame.toInt())
+        val blurWorkerRequest = OneTimeWorkRequestBuilder<LocalBlurWorker>()
+            .setInputData(
+                workDataOf(
+                    LocalBlurWorker.URI_KEY to videoUri.toString(),
+                    LocalBlurWorker.VIDEO_TITLE_KEY to videoTitle.value,
+                    LocalBlurWorker.NOTIFICATION_ID_KEY to 1
+                )
+            )
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .addTag("localBlur")
+            .build()
 
-                    val img = InputImage.fromBitmap(frame!!, 0)
 
-                    val detector = FaceDetection.getClient(highAccuracyOpts)
-                    detector.process(img)
-                        .addOnSuccessListener { faces ->
-                            Log.d("xdd", faces.size.toString())
+        val operation = WorkManager.getInstance(application)
+            .enqueueUniqueWork(
+                "localBLur",
+                ExistingWorkPolicy.REPLACE,
+                blurWorkerRequest
+            )
 
-                            val bitmapWithRectangles = drawRectanglesOnBitmap(frame, faces)
-                            processingFuture.complete(bitmapWithRectangles)
-                            // ...
-                        }
-
-                    processingFutures.add(processingFuture)
-                }
-
-                allTasksComplete.thenRun {
-                    val processed_frames = processingFutures.map { it.join() }
-
-                    println("dopa dupa dupa")
-
-                    val outputdir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).toString()
-                    val file = File("$outputdir/output.mp4")
-                    val muxer = Muxer(application, MuxerConfig(
-                        file,
-                        retriever.getFrameAtIndex(0)!!.width,
-                        retriever.getFrameAtIndex(0)!!.height,
-                        framesPerSecond = 30F,
-                        ))
-
-                    println("mutex set")
-
-                    aaa(processed_frames, muxer, file)
-
-                    println("dupa dupa dupa")
-                }
-            } finally {
-                retriever.release()
+        viewModelScope.launch {
+            runCatching {
+                val result = operation.result.await()
+                updateUploadStatus(RequestStatus.SUCCESS)
+            }.exceptionOrNull()?.let {
+                updateUploadStatus(RequestStatus.SUCCESS) // FAILURE HERE
             }
         }
     }
 
-    private fun aaa(imageList: List<Any>, muxer: Muxer, file: File): MuxingResult {
-        Log.d("xd", "Generating video")
-        val frameBuilder = FrameBuilder(application, muxer.getMuxerConfig(), null)
-
-        try {
-            frameBuilder.start()
-        } catch (e: IOException) {
-            Log.e("xdd", "Start Encoder Failed")
-            e.printStackTrace()
-            return MuxingError("Start encoder failed", e)
-        }
-
-        for (image in imageList) {
-            frameBuilder.createFrame(image)
-        }
-
-        // Release the video codec so we can mux in the audio frames separately
-        frameBuilder.releaseVideoCodec()
-
-        frameBuilder.releaseMuxer()
-
-        return MuxingSuccess(file)
-    }
-
-    private fun drawRectanglesOnBitmap(bitmap: Bitmap, faces: List<Face>): Bitmap {
-        val resultBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-        val canvas = Canvas(resultBitmap)
-        val paint = Paint()
-        paint.color = ContextCompat.getColor(getApplication(), R.color.black)
-        paint.style = Paint.Style.FILL
-
-        for (face in faces) {
-            val boundingBox = face.boundingBox
-            canvas.drawRect(boundingBox, paint)
-        }
-
-        return resultBitmap
-    }
-
-    val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
-
-    fun updateUploadStatus(newStatus: RequestStatus) {
+    private fun updateUploadStatus(newStatus: RequestStatus) {
         uploadStatus.update { newStatus }
     }
+
+    fun updateVideoTitle(newTitle: String) = videoTitle.update { newTitle }
 
     fun uploadVideoForProcessing(uri: Uri, videoTitle: String, navigateToHomePage: () -> Unit) {
         viewModelScope.launch {
@@ -219,9 +141,9 @@ class UploadVideoViewModel @Inject constructor(
                                 .setBlured(true)
                         ).build()
                     }
-
             }
         }
 
     }
+
 }

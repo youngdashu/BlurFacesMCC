@@ -6,8 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,23 +26,28 @@ import coil.request.videoFrameMillis
 fun MyVideoElement(
     fileName: String,
     uri: String,
-    imageModifier: Modifier = Modifier,
+    modifier: Modifier = Modifier,
     backgroundColor: Color,
     textColor: Color
 ) {
     val context = LocalContext.current
-    context.contentResolver.takePersistableUriPermission(
-        Uri.parse(uri),
-        Intent.FLAG_GRANT_READ_URI_PERMISSION
-    )
+    LaunchedEffect(uri) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                Uri.parse(uri),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+    }
 
-
-    val model = ImageRequest.Builder(context)
-        .data(Uri.parse(uri))
-        .allowHardware(false)
-        .videoFrameMillis(0)
-        .decoderFactory { result, options, _ -> VideoFrameDecoder(result.source, options) }
-        .build()
+    val model = runCatching {
+        ImageRequest.Builder(context)
+            .data(Uri.parse(uri))
+            .allowHardware(false)
+            .videoFrameMillis(0)
+            .decoderFactory { result, options, _ -> VideoFrameDecoder(result.source, options) }
+            .build()
+    }.getOrNull()
 
 
     Row(
@@ -49,7 +58,9 @@ fun MyVideoElement(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(modifier = imageModifier, model = model, contentDescription = "")
+        model?.let {
+            AsyncImage(modifier = modifier, model = model, contentDescription = "")
+        } ?: Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "unknown")
         Text(text = fileName, color = textColor)
     }
 }

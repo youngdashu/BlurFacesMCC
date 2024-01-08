@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "agh.mobile.blurfacesmcc"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -67,6 +67,7 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     implementation("com.github.israel-fl:bitmap2video:2.0.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     val lifecycle_version = "2.6.2"
     //LIFECYCLE
@@ -84,6 +85,9 @@ dependencies {
     // Saved state module for ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:$lifecycle_version")
 
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
     //Compose Runtime
     val runtimeVersion = "1.5.4"
     implementation("androidx.compose.runtime:runtime:$runtimeVersion")
@@ -94,13 +98,13 @@ dependencies {
     // Annotation processor
     kapt("androidx.lifecycle:lifecycle-compiler:$lifecycle_version")
 
-    val hiltVersion = "2.47"
+    val hiltVersion = "2.48"
 
     // HILT
     implementation("com.google.dagger:hilt-android:$hiltVersion")
     kapt("com.google.dagger:hilt-compiler:$hiltVersion")
 
-    implementation("androidx.activity:activity-compose:1.8.1")
+    implementation("androidx.activity:activity-compose:1.8.2")
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")

@@ -6,6 +6,7 @@ import agh.mobile.blurfacesmcc.ui.securitysettings.SecuritySettingsScreen
 import agh.mobile.blurfacesmcc.ui.securitysettings.confidentialData.ConfidentialDataScreen
 import agh.mobile.blurfacesmcc.ui.uploadvideo.UploadVideoScreen
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -14,14 +15,17 @@ import androidx.navigation.compose.rememberNavController
 
 @Composable
 fun BlurFacesNavHost(
-    startDestination: String = BlurFacesDestinations.HOME_PAGE
+    modifier: Modifier = Modifier,
+    startDestination: String = BlurFacesDestinations.HOME_PAGE,
+    showSnackbar: (String) -> Unit,
 ) {
 
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
+        modifier = modifier
     ) {
 
         composable(
@@ -44,7 +48,8 @@ fun BlurFacesNavHost(
             BlurFacesDestinations.UPLOAD_VIDEO
         ) {
             UploadVideoScreen(
-                navigateToHomePage = navController::navigateToHomePage
+                navigateToHomePage = navController::navigateToHomePage,
+                showSnackbar = showSnackbar
             )
         }
 
