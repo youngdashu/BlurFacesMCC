@@ -243,7 +243,7 @@ private suspend fun getBitmaps(
 }
 
 
-private suspend fun getAverageOfFrameNeighbors(
+private fun getAverageOfFrameNeighbors(
     index: Int,
     retriever: MediaMetadataRetriever
 ): Bitmap? {

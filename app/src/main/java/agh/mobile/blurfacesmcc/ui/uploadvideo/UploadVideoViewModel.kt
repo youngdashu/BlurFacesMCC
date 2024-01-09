@@ -81,7 +81,7 @@ class UploadVideoViewModel @Inject constructor(
 
         viewModelScope.launch {
             runCatching {
-                val result = operation.result.await()
+                operation.result.await()
                 updateUploadStatus(RequestStatus.SUCCESS)
             }.exceptionOrNull()?.let {
                 updateUploadStatus(RequestStatus.SUCCESS) // FAILURE HERE
