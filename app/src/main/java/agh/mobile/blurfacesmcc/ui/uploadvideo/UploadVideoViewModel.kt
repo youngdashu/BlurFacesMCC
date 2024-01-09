@@ -5,18 +5,36 @@ import agh.mobile.blurfacesmcc.domain.RequestStatus
 import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
+import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
 import android.app.Application
+import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkManager
+import androidx.work.await
+import androidx.work.workDataOf
+import com.google.mlkit.vision.face.Face
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
+
+
+data class FacesAtFrame(
+    val faces: List<Face>,
+    val frameIndex: Int,
+    val frame: Bitmap
+)
 
 @HiltViewModel
 class UploadVideoViewModel @Inject constructor(
@@ -24,11 +42,56 @@ class UploadVideoViewModel @Inject constructor(
     private val videosRepository: DefaultVideosRepository
 ) : AndroidViewModel(application) {
 
+    val videoTitle = MutableStateFlow("")
     val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
 
-    fun updateUploadStatus(newStatus: RequestStatus) {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val processingProgress = WorkManager.getInstance(application)
+        .getWorkInfosByTagFlow("localBlur")
+        .mapLatest {
+            it.firstOrNull()?.progress?.getFloat(LocalBlurWorker.Progress, 0f) ?: 0f
+        }
+
+
+    fun extractFacesFromVideo(videoUri: Uri, onFinish: (String?) -> Unit) {
+
+        updateUploadStatus(RequestStatus.WAITING)
+
+        val blurWorkerRequest = OneTimeWorkRequestBuilder<LocalBlurWorker>()
+            .setInputData(
+                workDataOf(
+                    LocalBlurWorker.URI_KEY to videoUri.toString(),
+                    LocalBlurWorker.VIDEO_TITLE_KEY to videoTitle.value,
+                    LocalBlurWorker.NOTIFICATION_ID_KEY to 1
+                )
+            )
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .addTag("localBlur")
+            .build()
+
+
+        val operation = WorkManager.getInstance(application)
+            .enqueueUniqueWork(
+                "localBLur",
+                ExistingWorkPolicy.REPLACE,
+                blurWorkerRequest
+            )
+
+        viewModelScope.launch {
+            runCatching {
+                val result = operation.result.await()
+                updateUploadStatus(RequestStatus.SUCCESS)
+            }.exceptionOrNull()?.let {
+                updateUploadStatus(RequestStatus.SUCCESS) // FAILURE HERE
+            }
+        }
+    }
+
+    private fun updateUploadStatus(newStatus: RequestStatus) {
         uploadStatus.update { newStatus }
     }
+
+    fun updateVideoTitle(newTitle: String) = videoTitle.update { newTitle }
 
     fun uploadVideoForProcessing(uri: Uri, videoTitle: String, navigateToHomePage: () -> Unit) {
         viewModelScope.launch {
@@ -78,9 +141,9 @@ class UploadVideoViewModel @Inject constructor(
                                 .setBlured(true)
                         ).build()
                     }
-
             }
         }
 
     }
+
 }

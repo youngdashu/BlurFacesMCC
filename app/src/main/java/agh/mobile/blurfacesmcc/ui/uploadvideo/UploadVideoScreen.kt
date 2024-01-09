@@ -2,9 +2,10 @@ package agh.mobile.blurfacesmcc.ui.uploadvideo
 
 import agh.mobile.blurfacesmcc.R
 import agh.mobile.blurfacesmcc.domain.RequestStatus
+import android.app.Activity
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -50,28 +51,38 @@ import coil.request.videoFrameMillis
 @Composable
 fun UploadVideoScreen(
     navigateToHomePage: () -> Unit,
-    uploadVideoViewModel: UploadVideoViewModel = hiltViewModel()
+    uploadVideoViewModel: UploadVideoViewModel = hiltViewModel(),
+    showSnackbar: (String) -> Unit
 ) {
     val uploadStatus by uploadVideoViewModel.uploadStatus.collectAsState()
+    val processingProgress by uploadVideoViewModel.processingProgress.collectAsState(initial = 0f)
 
-    var result by remember {
+    val videoTitle by uploadVideoViewModel.videoTitle.collectAsState()
+
+    val context = LocalContext.current
+
+    var resultUri by remember {
         mutableStateOf<Uri?>(null)
     }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) {
-        result = it
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            val flags = data?.flags!! and Intent.FLAG_GRANT_READ_URI_PERMISSION
+
+            val uri = data.data ?: return@rememberLauncherForActivityResult
+            resultUri = uri
+
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+        }
     }
+
+    val intent = ActivityResultContracts.GetContent().createIntent(context, "video/*")
 
     LaunchedEffect(null) {
-        launcher.launch(
-            PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.VideoOnly)
-        )
-    }
-
-    var videoTitle by remember {
-        mutableStateOf("")
+        launcher.launch(intent)
     }
 
     Scaffold(
@@ -97,12 +108,12 @@ fun UploadVideoScreen(
                 .fillMaxHeight()
         ) {
 
-            if (result != null) {
+            if (resultUri != null) {
 
                 val painter = rememberAsyncImagePainter(
                     ImageRequest
                         .Builder(LocalContext.current)
-                        .data(result)
+                        .data(resultUri)
                         .allowHardware(false)
                         .videoFrameMillis(0)
                         .decoderFactory { result, options, _ ->
@@ -132,7 +143,7 @@ fun UploadVideoScreen(
 
                         OutlinedTextField(
                             value = videoTitle,
-                            onValueChange = { videoTitle = it },
+                            onValueChange = uploadVideoViewModel::updateVideoTitle,
                             label = {
                                 Text(text = "Video name")
                             }
@@ -146,27 +157,34 @@ fun UploadVideoScreen(
                             Button(
                                 enabled = uploadStatus != RequestStatus.WAITING,
                                 onClick = {
-                                    uploadVideoViewModel.saveUploadedVideoURI(result!!)
-                                    uploadVideoViewModel.uploadVideoForProcessing(
-                                        result!!,
-                                        videoTitle,
-                                        navigateToHomePage
-                                    )
+                                    uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
+                                        navigateToHomePage()
+                                        showSnackbar(message ?: "Processing finished")
+                                    }
+//                                    uploadVideoViewModel.saveUploadedVideoURI(result!!)
+//                                    uploadVideoViewModel.uploadVideoForProcessing(
+//                                        result!!,
+//                                        videoTitle,
+//                                        navigateToHomePage
+//                                    )
                                 }
                             ) {
-                                Text(text = stringResource(id = R.string.blur_faces))
                                 if (uploadStatus == RequestStatus.WAITING) {
+                                    Text(text = "Processing in progress")
                                     CircularProgressIndicator(
+                                        progress = processingProgress,
                                         modifier = Modifier
                                             .padding(start = 10.dp)
                                             .size(20.dp),
                                     )
+                                } else {
+                                    Text(text = stringResource(id = R.string.blur_faces))
                                 }
                             }
 
                             OutlinedButton(
                                 enabled = uploadStatus != RequestStatus.WAITING,
-                                onClick = { result = null }
+                                onClick = { resultUri = null }
                             ) {
                                 Text(text = stringResource(id = R.string.cancel))
                             }
@@ -180,9 +198,7 @@ fun UploadVideoScreen(
                 ) {
                     Button(
                         onClick = {
-                            launcher.launch(
-                                PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.VideoOnly)
-                            )
+                            launcher.launch(intent)
                         }
                     ) { Text(text = "Choose a media") }
                 }

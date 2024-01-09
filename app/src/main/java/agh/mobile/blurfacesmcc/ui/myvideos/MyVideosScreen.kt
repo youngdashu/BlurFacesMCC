@@ -1,6 +1,7 @@
 package agh.mobile.blurfacesmcc.ui.myvideos
 
 import android.Manifest
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,8 +47,9 @@ fun MyVideosScreen(
                     Text(text = "Bluring in Progress", style = MaterialTheme.typography.titleLarge)
 
                     videoRecords.filter { !it.blured }.map { videoRecord ->
+                        Log.e("xdd", videoRecord.uri.toString())
                         MyVideoElement(
-                            imageModifier = Modifier
+                            modifier = Modifier
                                 .width(100.dp)
                                 .height(100.dp),
                             fileName = videoRecord.filename,
@@ -66,7 +68,7 @@ fun MyVideosScreen(
                     Text(text = "Blured Videos", style = MaterialTheme.typography.titleLarge)
                     videoRecords.filter { it.blured }.map { videoRecord ->
                         MyVideoElement(
-                            imageModifier = Modifier
+                            modifier = Modifier
                                 .width(100.dp)
                                 .height(100.dp),
                             fileName = videoRecord.filename,
