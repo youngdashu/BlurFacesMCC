@@ -24,6 +24,7 @@ import com.homesoft.encoder.MuxerConfig
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.io.IOException
@@ -32,7 +33,7 @@ import kotlin.math.roundToInt
 
 suspend fun processLocal(
     context: Context,
-    videoUri: Uri,
+    inputVideoUri: Uri,
     videoTitle: String?,
     jobId: UUID,
     reportProgress: suspend (Float) -> Unit
@@ -45,9 +46,11 @@ suspend fun processLocal(
     val fileName = videoTitle.orEmpty().ifEmpty { "output" }
 
     val fileNameWithDir = "$outputDir/$fileName.mp4"
+    val outputFile = File(fileNameWithDir)
 
-    runCatching {
-        retriever.setDataSource(context, videoUri)
+    val result = runCatching {
+
+        retriever.setDataSource(context, inputVideoUri)
 
         // Get the duration of the video in milliseconds
         val framesCount =
@@ -57,10 +60,8 @@ suspend fun processLocal(
         val fps = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
             ?.toFloatOrNull()
 
-        val file = File(fileNameWithDir)
-
         context.saveVideoToDataStore {
-            uri = file.toUri().toString()
+            uri = outputFile.toUri().toString()
             filename = fileName
             blured = false
             this.jobId = jobId.toString()
@@ -68,7 +69,7 @@ suspend fun processLocal(
 
         val muxer = Muxer(
             context, MuxerConfig(
-                file,
+                outputFile,
                 retriever.getFrameAtIndex(0)!!.width,
                 retriever.getFrameAtIndex(0)!!.height,
                 framesPerSecond = fps ?: 30F,
@@ -94,37 +95,51 @@ suspend fun processLocal(
             e.printStackTrace()
         }
 
-        frameIndices.forEachIndexed { i, indicesToProcess ->
-            val detectionResults = getFaceDetection(indicesToProcess, context, videoUri)
-            val result = getBitmaps(context, detectionResults)
-            for (image in result) {
-                frameBuilder.createFrame(image)
-            }
+        coroutineScope {
+            launch {
+                frameIndices.forEachIndexed { i, indicesToProcess ->
+                    val detectionResults =
+                        getFaceDetection(indicesToProcess, context, inputVideoUri)
+                    val result = getBitmaps(context, detectionResults)
+                    for (image in result) {
+                        frameBuilder.createFrame(image)
+                    }
 
-            reportProgress(
-                (i + 1).toFloat() / frameIndices.size.toFloat()
-            )
-        }
+                    reportProgress(
+                        (i + 1).toFloat() / frameIndices.size.toFloat()
+                    )
+                }
+            }
+        }.join()
 
         frameBuilder.releaseVideoCodec()
         frameBuilder.releaseMuxer()
+        println("After Release")
     }.map {
         retriever.release()
-//        context.contentResolver.releasePersistableUriPermission(videoUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }.exceptionOrNull()?.let {
-        Log.e("error", it.stackTraceToString())
-        File(fileNameWithDir).absoluteFile.delete()
-        context.updateVideoInDataStore(videoUri.toString()) {
-            filename = "FAILED $fileName"
-            blured = true
-        }
-        return Result.failure(it)
-    } ?: run {
-        context.updateVideoInDataStore(videoUri.toString()) {
-            blured = true
-        }
-        return Result.success(Unit)
+    }.exceptionOrNull()
+
+    val workResult = coroutineScope {
+        async {
+            println("Start async")
+            if (result == null) {
+                context.updateVideoInDataStore(outputFile.toUri()) {
+                    println("Set blured")
+                    this.blured = true
+                }
+                Result.success(Unit)
+            } else {
+                Log.e("error", result.stackTraceToString())
+                File(fileNameWithDir).absoluteFile.delete()
+                context.updateVideoInDataStore(inputVideoUri) {
+                    filename = "FAILED $fileName"
+                    blured = true
+                }
+                Result.failure(result)
+            }
+        }.await()
     }
+    return workResult
 }
 
 private suspend fun Context.saveVideoToDataStore(builder: VideoRecord.Builder.() -> Unit) {
@@ -136,16 +151,17 @@ private suspend fun Context.saveVideoToDataStore(builder: VideoRecord.Builder.()
 }
 
 private suspend fun Context.updateVideoInDataStore(
-    uri: String,
+    uri: Uri,
     updater: VideoRecord.Builder.() -> Unit
 ) {
     videoDataStore.updateData {
         val index = it.objectsList.indexOfFirst { videoRecord ->
-            videoRecord.uri == uri
+            println(videoRecord.uri.toString())
+            videoRecord.uri.toString() == uri.toString()
         }.takeIf { it > -1 } ?: return@updateData it
-
-        it.objectsList[index] = it.objectsList[index].toBuilder().apply(updater).build()
-        it
+        val builder = it.getObjects(index).toBuilder().apply(updater)
+        val videosBuilder = it.toBuilder().setObjects(index, builder)
+        videosBuilder.build()
     }
 }
 
