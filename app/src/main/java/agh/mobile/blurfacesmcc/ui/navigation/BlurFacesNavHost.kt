@@ -41,7 +41,9 @@ fun BlurFacesNavHost(
         composable(
             BlurFacesDestinations.MY_VIDEOS
         ) {
-            MyVideosScreen()
+            MyVideosScreen(
+                navController::navigateToHomePage
+            )
         }
 
         composable(
