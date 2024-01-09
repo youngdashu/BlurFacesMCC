@@ -50,7 +50,7 @@ import coil.request.videoFrameMillis
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadVideoScreen(
-    navigateToHomePage: () -> Unit,
+    navigateToMyVideos: () -> Unit,
     uploadVideoViewModel: UploadVideoViewModel = hiltViewModel(),
     showSnackbar: (String) -> Unit
 ) {
@@ -90,7 +90,7 @@ fun UploadVideoScreen(
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.uploadVideo)) },
                 navigationIcon = {
-                    IconButton(onClick = navigateToHomePage) {
+                    IconButton(onClick = navigateToMyVideos) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "Back"
@@ -158,7 +158,7 @@ fun UploadVideoScreen(
                                 enabled = uploadStatus != RequestStatus.WAITING,
                                 onClick = {
                                     uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
-                                        navigateToHomePage()
+                                        navigateToMyVideos()
                                         showSnackbar(message ?: "Processing finished")
                                     }
 
@@ -189,7 +189,7 @@ fun UploadVideoScreen(
                             uploadVideoViewModel.uploadVideoForProcessing(
                                 resultUri!!,
                                 videoTitle,
-                                navigateToHomePage
+                                navigateToMyVideos
                             )
                         }) {
                             Text(text = "Process online")

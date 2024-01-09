@@ -10,7 +10,6 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,7 +18,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.await
 import androidx.work.workDataOf
 import com.google.mlkit.vision.face.Face
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -81,10 +79,10 @@ class UploadVideoViewModel @Inject constructor(
 
         viewModelScope.launch {
             runCatching {
-                operation.result.await()
                 updateUploadStatus(RequestStatus.SUCCESS)
+                onFinish("Video submitted successfully")
             }.exceptionOrNull()?.let {
-                updateUploadStatus(RequestStatus.SUCCESS) // FAILURE HERE
+                updateUploadStatus(RequestStatus.NOT_SEND) // FAILURE HERE
             }
         }
     }
@@ -105,7 +103,6 @@ class UploadVideoViewModel @Inject constructor(
             inputStream.close()
             videosRepository.processRemote(UploadVideoRequest(file, videoTitle))
         }.invokeOnCompletion {
-            Log.e("xdd", "${it?.stackTraceToString()}")
             viewModelScope.launch(Dispatchers.Main) {
                 when (it?.cause) {
                     is IOException -> {
