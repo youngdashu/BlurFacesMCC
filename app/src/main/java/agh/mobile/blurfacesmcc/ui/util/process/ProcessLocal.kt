@@ -27,12 +27,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import kotlin.math.roundToInt
 
 suspend fun processLocal(
     context: Context,
     videoUri: Uri,
     videoTitle: String?,
+    jobId: UUID,
     reportProgress: suspend (Float) -> Unit
 ): Result<Unit> {
     val retriever = MediaMetadataRetriever()
@@ -61,6 +63,7 @@ suspend fun processLocal(
             uri = file.toUri().toString()
             filename = fileName
             blured = false
+            this.jobId = jobId.toString()
         }
 
         val muxer = Muxer(

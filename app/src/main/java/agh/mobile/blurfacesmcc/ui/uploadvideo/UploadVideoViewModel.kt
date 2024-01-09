@@ -17,6 +17,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.await
 import androidx.work.workDataOf
@@ -24,10 +25,12 @@ import com.google.mlkit.vision.face.Face
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.internal.toImmutableList
 import java.io.IOException
 import javax.inject.Inject
 
@@ -48,12 +51,9 @@ class UploadVideoViewModel @Inject constructor(
     val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val processingProgress = WorkManager.getInstance(application)
-        .getWorkInfosByTagFlow("localBlur")
-        .mapLatest {
-            it.firstOrNull()?.progress?.getFloat(LocalBlurWorker.Progress, 0f) ?: 0f
-        }
-
+    val processingProgress = getWorkInfo("localBlur").mapLatest {
+        it.firstOrNull()?.progress?.getFloat(LocalBlurWorker.Progress, 0f) ?: 0f
+    }
 
     fun extractFacesFromVideo(videoUri: Uri, onFinish: (String?) -> Unit) {
 
@@ -152,7 +152,14 @@ class UploadVideoViewModel @Inject constructor(
                     }
             }
         }
-
     }
+}
 
+@OptIn(ExperimentalCoroutinesApi::class)
+fun AndroidViewModel.getWorkInfo(workTag: String): Flow<List<WorkInfo>> {
+    return WorkManager.getInstance(getApplication())
+        .getWorkInfosByTagFlow(workTag)
+        .mapLatest {
+            it.toImmutableList()
+        }
 }

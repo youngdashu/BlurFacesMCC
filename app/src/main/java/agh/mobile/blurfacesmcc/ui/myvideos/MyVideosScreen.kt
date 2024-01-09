@@ -4,7 +4,6 @@ import agh.mobile.blurfacesmcc.R
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.ui.util.TopBar
 import android.Manifest
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import java.util.UUID
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -35,7 +36,8 @@ fun MyVideosScreen(
     navigateBack: () -> Unit,
     viewModel: MyVideosViewModel = hiltViewModel()
 ) {
-    val videos = viewModel.videoRecords.collectAsState()
+    val videos = viewModel.videoRecords.collectAsState(initial = null)
+    val workInfos = viewModel.workInfos.collectAsState(initial = emptyMap())
     val externalStoragePermission = rememberPermissionState(
         Manifest.permission.READ_MEDIA_VIDEO
     )
@@ -48,7 +50,11 @@ fun MyVideosScreen(
         }
     ) {
         if (externalStoragePermission.status.isGranted) {
-            VideosContent(videos = videos.value, Modifier.padding(it))
+            VideosContent(
+                videos = videos.value,
+                workInfos = workInfos.value,
+                modifier = Modifier.padding(it)
+            )
         } else {
             LaunchedEffect(externalStoragePermission.status) {
                 externalStoragePermission.launchPermissionRequest()
@@ -60,7 +66,8 @@ fun MyVideosScreen(
 @Composable
 private fun VideosContent(
     videos: List<VideoRecord>?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    workInfos: Map<UUID, Float>
 ) {
     videos?.let { videoRecords ->
         LazyColumn(
@@ -85,16 +92,22 @@ private fun VideosContent(
 
             videoRecords.filter { !it.blured }.also {
                 items(it) { videoRecord ->
-                    Log.e("xdd", videoRecord.uri.toString())
-                    MyVideoElement(
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(100.dp),
-                        fileName = videoRecord.filename,
-                        uri = videoRecord.uri,
-                        backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                        textColor = MaterialTheme.colorScheme.secondary
-                    )
+                    Row {
+                        MyVideoElement(
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(100.dp),
+                            fileName = videoRecord.filename,
+                            uri = videoRecord.uri,
+                            backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                            textColor = MaterialTheme.colorScheme.secondary
+                        )
+                        runCatching {
+                            workInfos[UUID.fromString(videoRecord.jobId)]?.let {
+                                CircularProgressIndicator(progress = it)
+                            }
+                        }
+                    }
                 }
             }.ifEmpty {
                 item {

@@ -36,7 +36,8 @@ class LocalBlurWorker(
         val processingResult = processLocal(
             context,
             videoUri,
-            videoTitle
+            videoTitle,
+            id
         ) {
             coroutineScope {
                 launch {
