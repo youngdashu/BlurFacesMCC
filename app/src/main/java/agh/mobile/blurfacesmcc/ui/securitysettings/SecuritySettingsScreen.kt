@@ -30,7 +30,7 @@ fun SecuritySettingsScreen(
     viewModel: SecuritySettingsViewModel = hiltViewModel(),
     navigateToConfidentialData: () -> Unit
 ) {
-    var sliderSetting = viewModel.sliderValue.collectAsState()
+    val sliderSetting = viewModel.sliderValue.collectAsState()
 
     Row(
         modifier = Modifier

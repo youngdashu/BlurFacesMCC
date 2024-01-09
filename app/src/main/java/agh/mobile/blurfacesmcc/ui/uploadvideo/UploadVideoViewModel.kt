@@ -10,6 +10,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,6 +22,7 @@ import androidx.work.await
 import androidx.work.workDataOf
 import com.google.mlkit.vision.face.Face
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapLatest
@@ -94,7 +96,7 @@ class UploadVideoViewModel @Inject constructor(
     fun updateVideoTitle(newTitle: String) = videoTitle.update { newTitle }
 
     fun uploadVideoForProcessing(uri: Uri, videoTitle: String, navigateToHomePage: () -> Unit) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             updateUploadStatus(RequestStatus.WAITING)
             val inputStream = getApplication<Application>()
                 .contentResolver
@@ -103,26 +105,33 @@ class UploadVideoViewModel @Inject constructor(
             inputStream.close()
             videosRepository.processRemote(UploadVideoRequest(file, videoTitle))
         }.invokeOnCompletion {
-            when (it?.cause) {
-                is IOException -> {
-                    Toast.makeText(getApplication(), "An error Occurred", Toast.LENGTH_SHORT).show()
-                    updateUploadStatus(RequestStatus.NOT_SEND)
-                }
-
-                else -> {
-                    if (it == null) {
+            Log.e("xdd", "${it?.stackTraceToString()}")
+            viewModelScope.launch(Dispatchers.Main) {
+                when (it?.cause) {
+                    is IOException -> {
                         Toast.makeText(
                             getApplication(),
-                            "Video Uploaded Successfully",
+                            "An error Occurred ${it.message}",
                             Toast.LENGTH_SHORT
                         ).show()
-                        updateUploadStatus(RequestStatus.SUCCESS)
-                        navigateToHomePage()
+                        updateUploadStatus(RequestStatus.NOT_SEND)
+                    }
+
+                    else -> {
+                        if (it == null) {
+                            Toast.makeText(
+                                getApplication(),
+                                "Video Uploaded Successfully",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            updateUploadStatus(RequestStatus.SUCCESS)
+                            navigateToHomePage()
+                        }
                     }
                 }
             }
-        }
 
+        }
     }
 
     fun saveUploadedVideoURI(uri: Uri) {

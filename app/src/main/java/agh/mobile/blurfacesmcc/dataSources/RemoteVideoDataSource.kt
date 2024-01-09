@@ -2,6 +2,7 @@ package agh.mobile.blurfacesmcc.dataSources
 
 import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.util.APIService
+import android.util.Log
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -20,6 +21,7 @@ class RemoteVideoDataSource @Inject constructor(
         )
         val fileVideo =
             MultipartBody.Part.createFormData("file", uploadVideoRequest.fileName + ".mp4", video)
+        Log.d("xdd", "Uploading $fileVideo")
         return retrofit
             .create(APIService::class.java)
             .postUploadVideo(fileVideo)

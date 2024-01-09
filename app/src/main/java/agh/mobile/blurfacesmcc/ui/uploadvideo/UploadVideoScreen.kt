@@ -161,12 +161,7 @@ fun UploadVideoScreen(
                                         navigateToHomePage()
                                         showSnackbar(message ?: "Processing finished")
                                     }
-//                                    uploadVideoViewModel.saveUploadedVideoURI(result!!)
-//                                    uploadVideoViewModel.uploadVideoForProcessing(
-//                                        result!!,
-//                                        videoTitle,
-//                                        navigateToHomePage
-//                                    )
+
                                 }
                             ) {
                                 if (uploadStatus == RequestStatus.WAITING) {
@@ -188,6 +183,16 @@ fun UploadVideoScreen(
                             ) {
                                 Text(text = stringResource(id = R.string.cancel))
                             }
+                        }
+                        Button(onClick = {
+                            uploadVideoViewModel.saveUploadedVideoURI(resultUri!!)
+                            uploadVideoViewModel.uploadVideoForProcessing(
+                                resultUri!!,
+                                videoTitle,
+                                navigateToHomePage
+                            )
+                        }) {
+                            Text(text = "Process online")
                         }
                     }
                 }

@@ -2,12 +2,13 @@ package agh.mobile.blurfacesmcc.ui.myvideos
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,18 +50,19 @@ fun MyVideoElement(
             .build()
     }.getOrNull()
 
-
-    Row(
-        modifier = Modifier
-            .padding(top = 20.dp, bottom = 20.dp)
-            .background(backgroundColor)
-            .padding(5.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        modifier = Modifier,
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
-        model?.let {
-            AsyncImage(modifier = modifier, model = model, contentDescription = "")
-        } ?: Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "unknown")
-        Text(text = fileName, color = textColor)
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(5.dp)
+        ) {
+            model?.let {
+                AsyncImage(modifier = modifier, model = model, contentDescription = "")
+            } ?: Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "unknown")
+            Text(text = fileName, color = textColor)
+        }
     }
 }
