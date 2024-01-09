@@ -56,6 +56,7 @@ fun UploadVideoScreen(
 ) {
     val uploadStatus by uploadVideoViewModel.uploadStatus.collectAsState()
     val processingProgress by uploadVideoViewModel.processingProgress.collectAsState(initial = 0f)
+    val errorMessage by uploadVideoViewModel.errorMessage.collectAsState(initial = null)
 
     val videoTitle by uploadVideoViewModel.videoTitle.collectAsState()
 
@@ -144,6 +145,12 @@ fun UploadVideoScreen(
                         OutlinedTextField(
                             value = videoTitle,
                             onValueChange = uploadVideoViewModel::updateVideoTitle,
+                            isError = errorMessage != null,
+                            supportingText = {
+                                if (errorMessage != null) {
+                                    Text(text = errorMessage!!)
+                                }
+                            },
                             label = {
                                 Text(text = "Video name")
                             }
@@ -157,11 +164,17 @@ fun UploadVideoScreen(
                             Button(
                                 enabled = uploadStatus != RequestStatus.WAITING,
                                 onClick = {
-                                    uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
-                                        navigateToMyVideos()
-                                        showSnackbar(message ?: "Processing finished")
-                                    }
-
+                                    uploadVideoViewModel.processIfVideoDoesNotExist(videoTitle,
+                                        onSuccess = {
+                                            uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
+                                                navigateToMyVideos()
+                                                showSnackbar(message ?: "Processing finished")
+                                            }
+                                        },
+                                        onFailure = {
+                                            uploadVideoViewModel.updateErrorMessage("File already exists")
+                                        }
+                                    )
                                 }
                             ) {
                                 if (uploadStatus == RequestStatus.WAITING) {
