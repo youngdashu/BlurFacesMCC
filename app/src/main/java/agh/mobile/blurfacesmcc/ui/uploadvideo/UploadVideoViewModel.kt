@@ -4,14 +4,16 @@ import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.domain.RequestStatus
 import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
+import agh.mobile.blurfacesmcc.ui.util.process.saveVideoToDataStore
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Environment
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.Toast
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
@@ -31,7 +33,10 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.internal.toImmutableList
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
+import java.net.URL
 import javax.inject.Inject
 
 
@@ -95,17 +100,34 @@ class UploadVideoViewModel @Inject constructor(
 
     fun updateVideoTitle(newTitle: String) = videoTitle.update { newTitle }
 
-    fun uploadVideoForProcessing(uri: Uri, videoTitle: String, navigateToHomePage: () -> Unit) {
+    fun uploadVideoForProcessing(
+        videoUri: Uri,
+        videoTitle: String,
+        navigateToHomePage: () -> Unit
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             updateUploadStatus(RequestStatus.WAITING)
             val inputStream = getApplication<Application>()
                 .contentResolver
-                .openInputStream(uri)!!
+                .openInputStream(videoUri)!!
             val file = inputStream.readAllBytes()
             inputStream.close()
-            videosRepository.processRemote(UploadVideoRequest(file, videoTitle))
+            val url = videosRepository.processRemote(UploadVideoRequest(file, videoTitle))
+            val data = URL(url).readBytes()
+            val outputDir =
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+                    .toString()
+            val outputFile = File("$outputDir/$videoTitle.mp4")
+            val stream = FileOutputStream(outputFile)
+            stream.write(data)
+            stream.close()
+            application.applicationContext.saveVideoToDataStore {
+                uri = outputFile.toUri().toString()
+                filename = videoTitle
+                blured = true
+                this.jobId = jobId.toString()
+            }
         }.invokeOnCompletion {
-            Log.e("xdd", "${it?.stackTraceToString()}")
             viewModelScope.launch(Dispatchers.Main) {
                 when (it?.cause) {
                     is IOException -> {
