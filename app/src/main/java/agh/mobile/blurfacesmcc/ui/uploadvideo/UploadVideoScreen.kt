@@ -185,7 +185,6 @@ fun UploadVideoScreen(
                             }
                         }
                         Button(onClick = {
-                            uploadVideoViewModel.saveUploadedVideoURI(resultUri!!)
                             uploadVideoViewModel.uploadVideoForProcessing(
                                 resultUri!!,
                                 videoTitle,

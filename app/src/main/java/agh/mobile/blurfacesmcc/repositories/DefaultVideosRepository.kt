@@ -11,9 +11,9 @@ import kotlin.coroutines.cancellation.CancellationException
 class DefaultVideosRepository @Inject constructor(
     private val remoteVideoDataSource: RemoteVideoDataSource
 ) : VideosRepository {
-    override suspend fun processRemote(uploadVideoRequest: UploadVideoRequest) =
+    override suspend fun processRemote(uploadVideoRequest: UploadVideoRequest): String =
         try {
-            remoteVideoDataSource.upload(uploadVideoRequest).body()!!
+            remoteVideoDataSource.upload(uploadVideoRequest).body() ?: ""
         } catch (e: Exception) {
             Log.e("xdd", "Exception while upload ${e.stackTraceToString()}")
             throw CancellationException(IOException())
