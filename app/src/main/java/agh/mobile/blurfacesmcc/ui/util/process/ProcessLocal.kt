@@ -2,6 +2,7 @@ package agh.mobile.blurfacesmcc.ui.util.process
 
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.ui.uploadvideo.FacesAtFrame
+import agh.mobile.blurfacesmcc.ui.uploadvideo.PerformClustering
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import android.R
 import android.content.Context
@@ -56,6 +57,20 @@ suspend fun processLocal(
         val framesCount =
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)
                 ?.toLong() ?: 0
+
+        val listOfFrames = mutableListOf<Bitmap>()
+        val listOfFramesNames = mutableListOf<String>()
+        (0 until framesCount step 200).forEach{
+            val bitMap = retriever.getFrameAtIndex(it.toInt())!!
+            listOfFramesNames.add(it.toString())
+            listOfFrames.add(bitMap)
+        }
+
+        PerformClustering.performClusteringForLinkedList(listOfFrames,listOfFramesNames,context)
+
+
+
+
 
         val fps = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
             ?.toFloatOrNull()

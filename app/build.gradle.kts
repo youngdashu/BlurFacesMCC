@@ -55,7 +55,8 @@ android {
 
 dependencies {
 
-    implementation("androidx.core:core-ktx:1.12.0")
+
+    implementation("androidx.core:core-ktx:latest_version")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-compose:1.8.1")
     implementation(platform("androidx.compose:compose-bom:2023.08.00"))
@@ -131,6 +132,22 @@ dependencies {
 
     //Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+//    clusterisation
+
+//    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation ("com.google.firebase:firebase-core:17.3.0")
+    //firebase vision
+    implementation ("com.google.firebase:firebase-ml-vision:18.0.2")
+
+    implementation ("com.google.firebase:firebase-ml-model-interpreter:16.2.4")
+    //tflite
+    implementation ("org.tensorflow:tensorflow-lite:1.12.0")
+    //glide
+//    implementation ("com.github.bumptech.glide:glide:4.8.0")
+    implementation("commons-io:commons-io:2.6")
+    // DBSCAN
+    implementation("org.apache.commons:commons-math3:3.5")
 
 }
 

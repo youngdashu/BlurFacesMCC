@@ -31,7 +31,7 @@ fun HomePage(
             Button(onClick = navigateToUploadVideo) {
                 Text(text = stringResource(id = R.string.uploadVideo))
             }
-
+8
             Button(onClick = navigateToVideos) {
                 Text(text = stringResource(id = R.string.myVideos))
             }
