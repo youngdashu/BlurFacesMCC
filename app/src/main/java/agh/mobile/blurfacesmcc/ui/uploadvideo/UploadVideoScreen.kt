@@ -50,12 +50,13 @@ import coil.request.videoFrameMillis
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadVideoScreen(
-    navigateToHomePage: () -> Unit,
+    navigateToMyVideos: () -> Unit,
     uploadVideoViewModel: UploadVideoViewModel = hiltViewModel(),
     showSnackbar: (String) -> Unit
 ) {
     val uploadStatus by uploadVideoViewModel.uploadStatus.collectAsState()
     val processingProgress by uploadVideoViewModel.processingProgress.collectAsState(initial = 0f)
+    val errorMessage by uploadVideoViewModel.errorMessage.collectAsState(initial = null)
 
     val videoTitle by uploadVideoViewModel.videoTitle.collectAsState()
 
@@ -90,7 +91,7 @@ fun UploadVideoScreen(
             TopAppBar(
                 title = { Text(text = stringResource(id = R.string.uploadVideo)) },
                 navigationIcon = {
-                    IconButton(onClick = navigateToHomePage) {
+                    IconButton(onClick = navigateToMyVideos) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "Back"
@@ -144,6 +145,12 @@ fun UploadVideoScreen(
                         OutlinedTextField(
                             value = videoTitle,
                             onValueChange = uploadVideoViewModel::updateVideoTitle,
+                            isError = errorMessage != null,
+                            supportingText = {
+                                if (errorMessage != null) {
+                                    Text(text = errorMessage!!)
+                                }
+                            },
                             label = {
                                 Text(text = "Video name")
                             }
@@ -157,11 +164,17 @@ fun UploadVideoScreen(
                             Button(
                                 enabled = uploadStatus != RequestStatus.WAITING,
                                 onClick = {
-                                    uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
-                                        navigateToHomePage()
-                                        showSnackbar(message ?: "Processing finished")
-                                    }
-
+                                    uploadVideoViewModel.processIfVideoDoesNotExist(videoTitle,
+                                        onSuccess = {
+                                            uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
+                                                navigateToMyVideos()
+                                                showSnackbar(message ?: "Processing finished")
+                                            }
+                                        },
+                                        onFailure = {
+                                            uploadVideoViewModel.updateErrorMessage("File already exists")
+                                        }
+                                    )
                                 }
                             ) {
                                 if (uploadStatus == RequestStatus.WAITING) {
@@ -188,7 +201,7 @@ fun UploadVideoScreen(
                             uploadVideoViewModel.uploadVideoForProcessing(
                                 resultUri!!,
                                 videoTitle,
-                                navigateToHomePage
+                                navigateToMyVideos
                             )
                         }) {
                             Text(text = "Process online")

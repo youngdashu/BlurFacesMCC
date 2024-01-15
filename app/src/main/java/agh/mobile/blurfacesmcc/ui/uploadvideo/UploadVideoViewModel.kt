@@ -21,7 +21,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.await
 import androidx.work.workDataOf
 import com.google.mlkit.vision.face.Face
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -54,6 +54,7 @@ class UploadVideoViewModel @Inject constructor(
 
     val videoTitle = MutableStateFlow("")
     val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
+    val errorMessage: MutableStateFlow<String?> = MutableStateFlow(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val processingProgress = getWorkInfo("localBlur").mapLatest {
@@ -86,10 +87,10 @@ class UploadVideoViewModel @Inject constructor(
 
         viewModelScope.launch {
             runCatching {
-                operation.result.await()
                 updateUploadStatus(RequestStatus.SUCCESS)
+                onFinish("Video submitted successfully")
             }.exceptionOrNull()?.let {
-                updateUploadStatus(RequestStatus.SUCCESS) // FAILURE HERE
+                updateUploadStatus(RequestStatus.NOT_SEND) // FAILURE HERE
             }
         }
     }
@@ -99,6 +100,9 @@ class UploadVideoViewModel @Inject constructor(
     }
 
     fun updateVideoTitle(newTitle: String) = videoTitle.update { newTitle }
+
+
+    fun updateErrorMessage(newMessage: String) = errorMessage.update { newMessage }
 
     fun uploadVideoForProcessing(
         videoUri: Uri,
@@ -153,6 +157,28 @@ class UploadVideoViewModel @Inject constructor(
                 }
             }
 
+        }
+    }
+
+    private suspend fun videoExists(fileName: String): Boolean =
+        application
+            .videoDataStore
+            .data
+            .first()
+            .toBuilder()
+            .objectsList
+            .filter { element -> element.filename == fileName }
+            .size
+            .run { this > 0 }
+
+
+    fun processIfVideoDoesNotExist(fileName: String, onSuccess: () -> Unit, onFailure: () -> Unit) {
+        viewModelScope.launch {
+            if (videoExists(fileName)) {
+                onFailure()
+            } else {
+                onSuccess()
+            }
         }
     }
 
