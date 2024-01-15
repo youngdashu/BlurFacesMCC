@@ -24,7 +24,7 @@ class FaceCluster @Inject constructor() : ViewModel() {
     }
 
     fun isTheSameFace(photo1: Any, framesOfVideo: Any): Boolean {
-        PerformClustering.loadModelFile(this.context)
+//        PerformClustering.loadModelFile(this.context)
 
 
 

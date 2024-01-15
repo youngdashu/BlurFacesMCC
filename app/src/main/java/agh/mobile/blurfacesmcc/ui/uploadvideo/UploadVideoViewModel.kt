@@ -1,9 +1,11 @@
 package agh.mobile.blurfacesmcc.ui.uploadvideo
 
+import agh.mobile.blurfacesmcc.ConfidentialData
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.domain.RequestStatus
 import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
+import agh.mobile.blurfacesmcc.ui.util.confidentialDataArrayStore
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
 import android.app.Application
@@ -27,7 +29,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.internal.toImmutableList
@@ -54,6 +58,8 @@ class UploadVideoViewModel @Inject constructor(
     val processingProgress = getWorkInfo("localBlur").mapLatest {
         it.firstOrNull()?.progress?.getFloat(LocalBlurWorker.Progress, 0f) ?: 0f
     }
+
+
 
     fun extractFacesFromVideo(videoUri: Uri, onFinish: (String?) -> Unit) {
 
