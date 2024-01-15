@@ -6,6 +6,7 @@ import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.Log;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -68,36 +69,27 @@ public class PerformClustering {
         frames.add(img1);
         names.add("img14");
 
-        frames.add(img1);
-        names.add("img15");
+        Log.d("Result of checking sensitivity", String.valueOf(isSensitivFaceInBitMapList(img2,frames,names,context)));
+    }
 
-
+    public static boolean isSensitivFaceInBitMapList(Bitmap sensitiveFace, List<Bitmap> frames, List<String> names, Context context){
+        frames.add(sensitiveFace);
+        names.add("sensitive_face");
         TfliteHandler modelHandler = new TfliteHandler(context,frames,names);
 
         HashMap<String, InferenceHelper.Encoding> mEncodings = modelHandler.mEncodings;
-//
-//        ChineseWhispersHandler chinisHandler = new ChineseWhispersHandler(context);
-//        chinisHandler.performClustering(mEncodings);
-
-        ClusteringHandler clusteringHandler = new ClusteringHandler();
-
-        clusteringHandler.KMeansClustering(mEncodings);
-
-//        clusteringHandler.DBScanClustering(mEncodings);
-
-        clusteringHandler.getKMeansClusterIdx(modelHandler.convertToEncoding(img2,"img2"));
-    }
-
-    public static void performClusteringForLinkedList(Bitmap sensitiveFace, List<Bitmap> frames, List<String> names, Context context){
-        frames.add(sensitiveFace);
-        names.add("sensitive_face");
-        HashMap<String, InferenceHelper.Encoding> mEncodings = modelHandler.mEncodings;
 
         ClusteringHandler clusteringHandler = new ClusteringHandler();
 
 
         clusteringHandler.KMeansClustering(mEncodings);
-
+        int id = clusteringHandler.getKMeansClusterIdx(modelHandler.convertToEncoding(sensitiveFace,"sensitive_face"));
+        for (int i =0;i<frames.size()-1;i++){
+            if(clusteringHandler.getKMeansClusterIdx(modelHandler.convertToEncoding(frames.get(i),names.get(i))) == id){
+                return true;
+            }
+        }
+        return false;
     }
 
     static Bitmap getBitmapFromAssets(String fileName,Context context) {

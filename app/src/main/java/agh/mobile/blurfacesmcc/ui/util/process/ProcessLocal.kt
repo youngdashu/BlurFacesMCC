@@ -66,7 +66,7 @@ suspend fun processLocal(
             listOfFrames.add(bitMap)
         }
 
-        PerformClustering.performClusteringForLinkedList(listOfFrames,listOfFramesNames,context)
+//        PerformClustering.performClusteringForLinkedList(listOfFrames,listOfFramesNames,context)
 
 
 
