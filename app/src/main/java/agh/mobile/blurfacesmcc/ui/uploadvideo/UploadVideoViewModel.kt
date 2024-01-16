@@ -2,18 +2,16 @@ package agh.mobile.blurfacesmcc.ui.uploadvideo
 
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.domain.RequestStatus
-import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
 import agh.mobile.blurfacesmcc.ui.util.process.saveVideoToDataStore
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
+import agh.mobile.blurfacesmcc.workers.RemoteBlurWorker
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Environment
 import android.provider.OpenableColumns
 import android.widget.Toast
-import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
@@ -33,10 +31,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.internal.toImmutableList
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
-import java.net.URL
 import javax.inject.Inject
 
 
@@ -111,26 +106,28 @@ class UploadVideoViewModel @Inject constructor(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             updateUploadStatus(RequestStatus.WAITING)
-            val inputStream = getApplication<Application>()
-                .contentResolver
-                .openInputStream(videoUri)!!
-            val file = inputStream.readAllBytes()
-            inputStream.close()
-            val url = videosRepository.processRemote(UploadVideoRequest(file, videoTitle))
-            val data = URL(url).readBytes()
-            val outputDir =
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                    .toString()
-            val outputFile = File("$outputDir/$videoTitle.mp4")
-            val stream = FileOutputStream(outputFile)
-            stream.write(data)
-            stream.close()
-            application.applicationContext.saveVideoToDataStore {
-                uri = outputFile.toUri().toString()
+            val blurWorkerRequest = OneTimeWorkRequestBuilder<RemoteBlurWorker>()
+                .setInputData(
+                    workDataOf(
+                        RemoteBlurWorker.URI_KEY to videoUri.toString(),
+                        RemoteBlurWorker.VIDEO_TITLE_KEY to videoTitle,
+                    )
+                )
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .addTag("remoteBlur")
+                .build()
+            application.saveVideoToDataStore {
+                uri = videoUri.toString()
                 filename = videoTitle
-                blured = true
+                blured = false
                 this.jobId = jobId.toString()
             }
+            val operation = WorkManager.getInstance(application)
+                .enqueueUniqueWork(
+                    "remoteBLur",
+                    ExistingWorkPolicy.REPLACE,
+                    blurWorkerRequest
+                )
         }.invokeOnCompletion {
             viewModelScope.launch(Dispatchers.Main) {
                 when (it?.cause) {
@@ -147,7 +144,7 @@ class UploadVideoViewModel @Inject constructor(
                         if (it == null) {
                             Toast.makeText(
                                 getApplication(),
-                                "Video Uploaded Successfully",
+                                "Task scheduled successfully",
                                 Toast.LENGTH_SHORT
                             ).show()
                             updateUploadStatus(RequestStatus.SUCCESS)

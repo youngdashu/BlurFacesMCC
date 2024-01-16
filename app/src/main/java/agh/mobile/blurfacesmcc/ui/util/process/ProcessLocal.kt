@@ -150,7 +150,7 @@ suspend fun Context.saveVideoToDataStore(builder: VideoRecord.Builder.() -> Unit
     }
 }
 
-private suspend fun Context.updateVideoInDataStore(
+suspend fun Context.updateVideoInDataStore(
     uri: Uri,
     updater: VideoRecord.Builder.() -> Unit
 ) {
