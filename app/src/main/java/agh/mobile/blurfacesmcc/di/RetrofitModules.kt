@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.scalars.ScalarsConverterFactory
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -24,9 +25,10 @@ object RetrofitModules {
             .client(
                 OkHttpClient.Builder()
                     .connectTimeout(200, TimeUnit.SECONDS)
-                    .readTimeout(
-                        200, TimeUnit.SECONDS
-                    ).build()
+                    .retryOnConnectionFailure(true)
+                    .writeTimeout(200, TimeUnit.SECONDS)
+                    .callTimeout(Duration.ofSeconds(200))
+                    .readTimeout(200, TimeUnit.SECONDS).build()
             )
             .addConverterFactory(ScalarsConverterFactory.create())
             .build()
