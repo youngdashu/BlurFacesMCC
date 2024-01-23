@@ -50,7 +50,7 @@ fun BlurFacesNavHost(
             BlurFacesDestinations.UPLOAD_VIDEO
         ) {
             UploadVideoScreen(
-                navigateToHomePage = navController::navigateToHomePage,
+                navigateToMyVideos = navController::navigateToMyVideos,
                 showSnackbar = showSnackbar
             )
         }

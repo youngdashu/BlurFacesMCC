@@ -11,5 +11,5 @@ interface APIService {
     @POST("upload")
     suspend fun postUploadVideo(
         @Part file: MultipartBody.Part
-    ): Response<Unit>
+    ): Response<String>
 }

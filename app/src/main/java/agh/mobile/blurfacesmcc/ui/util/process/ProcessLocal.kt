@@ -156,7 +156,7 @@ suspend fun processLocal(
     return workResult
 }
 
-private suspend fun Context.saveVideoToDataStore(builder: VideoRecord.Builder.() -> Unit) {
+suspend fun Context.saveVideoToDataStore(builder: VideoRecord.Builder.() -> Unit) {
     videoDataStore.updateData { videos ->
         videos.toBuilder().addObjects(
             VideoRecord.getDefaultInstance().toBuilder().apply(builder)
@@ -164,7 +164,7 @@ private suspend fun Context.saveVideoToDataStore(builder: VideoRecord.Builder.()
     }
 }
 
-private suspend fun Context.updateVideoInDataStore(
+suspend fun Context.updateVideoInDataStore(
     uri: Uri,
     updater: VideoRecord.Builder.() -> Unit
 ) {

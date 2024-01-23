@@ -3,16 +3,16 @@ package agh.mobile.blurfacesmcc.ui.uploadvideo
 import agh.mobile.blurfacesmcc.ConfidentialData
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.domain.RequestStatus
-import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
 import agh.mobile.blurfacesmcc.ui.util.confidentialDataArrayStore
+import agh.mobile.blurfacesmcc.ui.util.process.saveVideoToDataStore
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
+import agh.mobile.blurfacesmcc.workers.RemoteBlurWorker
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,7 +21,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.await
 import androidx.work.workDataOf
 import com.google.mlkit.vision.face.Face
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +29,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -53,6 +53,7 @@ class UploadVideoViewModel @Inject constructor(
 
     val videoTitle = MutableStateFlow("")
     val uploadStatus = MutableStateFlow(RequestStatus.NOT_SEND)
+    val errorMessage: MutableStateFlow<String?> = MutableStateFlow(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val processingProgress = getWorkInfo("localBlur").mapLatest {
@@ -87,10 +88,10 @@ class UploadVideoViewModel @Inject constructor(
 
         viewModelScope.launch {
             runCatching {
-                operation.result.await()
                 updateUploadStatus(RequestStatus.SUCCESS)
+                onFinish("Video submitted successfully")
             }.exceptionOrNull()?.let {
-                updateUploadStatus(RequestStatus.SUCCESS) // FAILURE HERE
+                updateUploadStatus(RequestStatus.NOT_SEND) // FAILURE HERE
             }
         }
     }
@@ -101,17 +102,39 @@ class UploadVideoViewModel @Inject constructor(
 
     fun updateVideoTitle(newTitle: String) = videoTitle.update { newTitle }
 
-    fun uploadVideoForProcessing(uri: Uri, videoTitle: String, navigateToHomePage: () -> Unit) {
+
+    fun updateErrorMessage(newMessage: String) = errorMessage.update { newMessage }
+
+    fun uploadVideoForProcessing(
+        videoUri: Uri,
+        videoTitle: String,
+        navigateToHomePage: () -> Unit
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             updateUploadStatus(RequestStatus.WAITING)
-            val inputStream = getApplication<Application>()
-                .contentResolver
-                .openInputStream(uri)!!
-            val file = inputStream.readAllBytes()
-            inputStream.close()
-            videosRepository.processRemote(UploadVideoRequest(file, videoTitle))
+            val blurWorkerRequest = OneTimeWorkRequestBuilder<RemoteBlurWorker>()
+                .setInputData(
+                    workDataOf(
+                        RemoteBlurWorker.URI_KEY to videoUri.toString(),
+                        RemoteBlurWorker.VIDEO_TITLE_KEY to videoTitle,
+                    )
+                )
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .addTag("remoteBlur")
+                .build()
+            application.saveVideoToDataStore {
+                uri = videoUri.toString()
+                filename = videoTitle
+                blured = false
+                this.jobId = jobId.toString()
+            }
+            val operation = WorkManager.getInstance(application)
+                .enqueueUniqueWork(
+                    "remoteBLur",
+                    ExistingWorkPolicy.REPLACE,
+                    blurWorkerRequest
+                )
         }.invokeOnCompletion {
-            Log.e("xdd", "${it?.stackTraceToString()}")
             viewModelScope.launch(Dispatchers.Main) {
                 when (it?.cause) {
                     is IOException -> {
@@ -127,7 +150,7 @@ class UploadVideoViewModel @Inject constructor(
                         if (it == null) {
                             Toast.makeText(
                                 getApplication(),
-                                "Video Uploaded Successfully",
+                                "Task scheduled successfully",
                                 Toast.LENGTH_SHORT
                             ).show()
                             updateUploadStatus(RequestStatus.SUCCESS)
@@ -137,6 +160,28 @@ class UploadVideoViewModel @Inject constructor(
                 }
             }
 
+        }
+    }
+
+    private suspend fun videoExists(fileName: String): Boolean =
+        application
+            .videoDataStore
+            .data
+            .first()
+            .toBuilder()
+            .objectsList
+            .filter { element -> element.filename == fileName }
+            .size
+            .run { this > 0 }
+
+
+    fun processIfVideoDoesNotExist(fileName: String, onSuccess: () -> Unit, onFailure: () -> Unit) {
+        viewModelScope.launch {
+            if (videoExists(fileName)) {
+                onFailure()
+            } else {
+                onSuccess()
+            }
         }
     }
 

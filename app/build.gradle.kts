@@ -103,6 +103,8 @@ dependencies {
 
     // HILT
     implementation("com.google.dagger:hilt-android:$hiltVersion")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    kapt("androidx.hilt:hilt-compiler:1.1.0")
     kapt("com.google.dagger:hilt-compiler:$hiltVersion")
 
     implementation("androidx.activity:activity-compose:1.8.2")
@@ -132,6 +134,7 @@ dependencies {
 
     //Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
 
 //    clusterisation
 
