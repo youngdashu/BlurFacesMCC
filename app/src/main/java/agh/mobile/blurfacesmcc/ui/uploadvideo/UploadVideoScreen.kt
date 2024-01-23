@@ -45,6 +45,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
+import com.google.firebase.FirebaseApp
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +53,7 @@ import coil.request.videoFrameMillis
 fun UploadVideoScreen(
     navigateToMyVideos: () -> Unit,
     uploadVideoViewModel: UploadVideoViewModel = hiltViewModel(),
+    faceCluster:FaceCluster= hiltViewModel(),
     showSnackbar: (String) -> Unit
 ) {
     val uploadStatus by uploadVideoViewModel.uploadStatus.collectAsState()
@@ -61,6 +63,10 @@ fun UploadVideoScreen(
     val videoTitle by uploadVideoViewModel.videoTitle.collectAsState()
 
     val context = LocalContext.current
+
+
+    faceCluster.postContext(context);
+
 
     var resultUri by remember {
         mutableStateOf<Uri?>(null)
@@ -205,6 +211,12 @@ fun UploadVideoScreen(
                             )
                         }) {
                             Text(text = "Process online")
+                        }
+
+                        Button(onClick = {
+                            faceCluster.isTheSameFace(1,1);
+                        }) {
+                            Text(text = "Cluster")
                         }
                     }
                 }

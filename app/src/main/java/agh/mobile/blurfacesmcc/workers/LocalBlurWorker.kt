@@ -1,16 +1,25 @@
 package agh.mobile.blurfacesmcc.workers
 
+import agh.mobile.blurfacesmcc.ConfidentialData
+import agh.mobile.blurfacesmcc.ui.util.confidentialDataArrayStore
 import agh.mobile.blurfacesmcc.ui.util.process.processLocal
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.net.Uri
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.viewModelScope
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -33,10 +42,20 @@ class LocalBlurWorker(
             createForegroundInfo("Identifying faces 0%", notificationId)
         )
 
+        val confidentialData = coroutineScope {
+            async {
+                context.confidentialDataArrayStore.data.first().objectsList
+            }.await()
+        } ?: emptyList()
+
+        println("conf data")
+        println(confidentialData)
+
         val processingResult = processLocal(
             context,
             videoUri,
             videoTitle,
+            confidentialData,
             id
         ) {
             coroutineScope {
