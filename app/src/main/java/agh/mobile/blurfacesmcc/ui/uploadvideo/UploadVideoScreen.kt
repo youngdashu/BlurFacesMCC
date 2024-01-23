@@ -7,11 +7,12 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,7 +46,6 @@ import coil.compose.rememberAsyncImagePainter
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
-import com.google.firebase.FirebaseApp
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,9 +64,12 @@ fun UploadVideoScreen(
 
     val context = LocalContext.current
 
+    var error by remember {
+        mutableStateOf("")
+    }
 
-    faceCluster.postContext(context);
 
+    faceCluster.postContext(context)
 
     var resultUri by remember {
         mutableStateOf<Uri?>(null)
@@ -77,19 +80,49 @@ fun UploadVideoScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val data = result.data
-            val flags = data?.flags!! and Intent.FLAG_GRANT_READ_URI_PERMISSION
+//            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
 
-            val uri = data.data ?: return@rememberLauncherForActivityResult
+            val uri = data?.data ?: return@rememberLauncherForActivityResult
             resultUri = uri
 
-            context.contentResolver.takePersistableUriPermission(uri, flags)
+            // this line breaks app xDD
+//            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
 
+    val newIntent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+    newIntent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+    newIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+
+
     val intent = ActivityResultContracts.GetContent().createIntent(context, "video/*")
+        .addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+    val openDocumentLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let {
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        it,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+
+                    resultUri = uri
+
+                    // Handle the URI (e.g., open, read, or display the file)
+                } catch (e: Exception) {
+                    error = e.toString()
+                }
+            }
+        }
 
     LaunchedEffect(null) {
         launcher.launch(intent)
+
+//        openDocumentLauncher.launch(arrayOf("video/*"))
+
     }
 
     Scaffold(
@@ -112,7 +145,7 @@ fun UploadVideoScreen(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
                 .padding(it)
-                .fillMaxHeight()
+                .fillMaxSize()
         ) {
 
             if (resultUri != null) {
@@ -135,7 +168,7 @@ fun UploadVideoScreen(
                 Card {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.SpaceEvenly,
                         modifier = Modifier.padding(16.dp)
                     ) {
                         //Use Coil to display the selected image
@@ -145,7 +178,7 @@ fun UploadVideoScreen(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(400.dp, 400.dp)
-                                .padding(16.dp)
+//                                .padding(16.dp)
                         )
 
                         OutlinedTextField(
@@ -162,74 +195,101 @@ fun UploadVideoScreen(
                             }
                         )
 
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceAround,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Button(
-                                enabled = uploadStatus != RequestStatus.WAITING,
-                                onClick = {
-                                    uploadVideoViewModel.processIfVideoDoesNotExist(videoTitle,
-                                        onSuccess = {
-                                            uploadVideoViewModel.extractFacesFromVideo(resultUri!!) { message ->
-                                                navigateToMyVideos()
-                                                showSnackbar(message ?: "Processing finished")
-                                            }
-                                        },
-                                        onFailure = {
-                                            uploadVideoViewModel.updateErrorMessage("File already exists")
+                        AnimatedVisibility(visible = videoTitle.isNotEmpty()) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.SpaceEvenly,
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceAround,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Button(
+                                        enabled = uploadStatus != RequestStatus.WAITING,
+                                        onClick = {
+                                            uploadVideoViewModel.processIfVideoDoesNotExist(
+                                                videoTitle,
+                                                onSuccess = {
+                                                    uploadVideoViewModel.extractFacesFromVideo(
+                                                        resultUri!!
+                                                    ) { message ->
+                                                        navigateToMyVideos()
+                                                        showSnackbar(
+                                                            message ?: "Processing finished"
+                                                        )
+                                                    }
+                                                },
+                                                onFailure = {
+                                                    showSnackbar("File already exists")
+                                                    uploadVideoViewModel.updateErrorMessage("File already exists")
+                                                }
+                                            )
                                         }
-                                    )
+                                    ) {
+                                        if (uploadStatus == RequestStatus.WAITING) {
+                                            Text(text = "Processing in progress")
+                                            CircularProgressIndicator(
+                                                progress = processingProgress,
+                                                modifier = Modifier
+                                                    .padding(start = 10.dp)
+                                                    .size(20.dp),
+                                            )
+                                        } else {
+                                            Text(text = stringResource(id = R.string.blur_faces))
+                                        }
+                                    }
+
+                                    OutlinedButton(
+                                        enabled = uploadStatus != RequestStatus.WAITING,
+                                        onClick = { resultUri = null }
+                                    ) {
+                                        Text(text = stringResource(id = R.string.cancel))
+                                    }
                                 }
-                            ) {
-                                if (uploadStatus == RequestStatus.WAITING) {
-                                    Text(text = "Processing in progress")
-                                    CircularProgressIndicator(
-                                        progress = processingProgress,
-                                        modifier = Modifier
-                                            .padding(start = 10.dp)
-                                            .size(20.dp),
+                                Button(onClick = {
+                                    uploadVideoViewModel.uploadVideoForProcessing(
+                                        resultUri!!,
+                                        videoTitle,
+                                        navigateToMyVideos
                                     )
-                                } else {
-                                    Text(text = stringResource(id = R.string.blur_faces))
+                                }) {
+                                    Text(text = "Process online")
+                                }
+
+                                Button(onClick = {
+                                    faceCluster.isTheSameFace(1, 1)
+                                }) {
+                                    Text(text = "Cluster")
+                                }
+                                Button(onClick = {
+                                    uploadVideoViewModel.stressTest(
+                                        resultUri!!,
+                                        videoTitle
+                                    )
+                                }) {
+                                    Text(text = "Stress test")
                                 }
                             }
-
-                            OutlinedButton(
-                                enabled = uploadStatus != RequestStatus.WAITING,
-                                onClick = { resultUri = null }
-                            ) {
-                                Text(text = stringResource(id = R.string.cancel))
-                            }
-                        }
-                        Button(onClick = {
-                            uploadVideoViewModel.uploadVideoForProcessing(
-                                resultUri!!,
-                                videoTitle,
-                                navigateToMyVideos
-                            )
-                        }) {
-                            Text(text = "Process online")
-                        }
-
-                        Button(onClick = {
-                            faceCluster.isTheSameFace(1,1);
-                        }) {
-                            Text(text = "Cluster")
                         }
                     }
                 }
             } else {
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Button(
-                        onClick = {
-                            launcher.launch(intent)
-                        }
-                    ) { Text(text = "Choose a media") }
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = {
+                                launcher.launch(intent)
+                            }
+                        ) { Text(text = "Choose a media") }
+                    }
+                    if (error.isNotEmpty())
+                        Text(text = error)
                 }
             }
         }

@@ -8,6 +8,11 @@ message VideoRecord {
   string filename = 2;
   bool blured = 3;
   string jobId = 4;
+  int32 batteryStart = 5;
+  int32 batteryEnd = 6;
+  int32 batteryCapacity = 7;
+  string startTime = 8;
+  string endTime = 9;
 }
 
 message Videos {

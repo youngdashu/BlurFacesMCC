@@ -21,7 +21,7 @@ object RetrofitModules {
         Retrofit
             .Builder()
             //.baseUrl("http://blur-server.default.54.221.201.107.sslip.io")
-            .baseUrl("http://10.0.2.2:3001")
+            .baseUrl("http://blur-server.default.54.167.133.117.sslip.io")
             .client(
                 OkHttpClient.Builder()
                     .connectTimeout(200, TimeUnit.SECONDS)

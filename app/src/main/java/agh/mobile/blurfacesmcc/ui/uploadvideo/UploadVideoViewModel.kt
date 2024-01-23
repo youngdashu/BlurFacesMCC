@@ -1,18 +1,19 @@
 package agh.mobile.blurfacesmcc.ui.uploadvideo
 
-import agh.mobile.blurfacesmcc.ConfidentialData
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.domain.RequestStatus
+import agh.mobile.blurfacesmcc.domain.requestTypes.UploadVideoRequest
 import agh.mobile.blurfacesmcc.repositories.DefaultVideosRepository
-import agh.mobile.blurfacesmcc.ui.util.confidentialDataArrayStore
 import agh.mobile.blurfacesmcc.ui.util.process.saveVideoToDataStore
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
+import agh.mobile.blurfacesmcc.util.APIService
 import agh.mobile.blurfacesmcc.workers.LocalBlurWorker
 import agh.mobile.blurfacesmcc.workers.RemoteBlurWorker
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,16 +29,24 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.toImmutableList
+import retrofit2.Retrofit
+import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.io.IOException
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
+
+const val REQUESTS_NUM: Int = 16
 
 data class FacesAtFrame(
     val faces: List<Face>,
@@ -60,10 +69,7 @@ class UploadVideoViewModel @Inject constructor(
         it.firstOrNull()?.progress?.getFloat(LocalBlurWorker.Progress, 0f) ?: 0f
     }
 
-
-
     fun extractFacesFromVideo(videoUri: Uri, onFinish: (String?) -> Unit) {
-
         updateUploadStatus(RequestStatus.WAITING)
 
         val blurWorkerRequest = OneTimeWorkRequestBuilder<LocalBlurWorker>()
@@ -92,6 +98,7 @@ class UploadVideoViewModel @Inject constructor(
                 onFinish("Video submitted successfully")
             }.exceptionOrNull()?.let {
                 updateUploadStatus(RequestStatus.NOT_SEND) // FAILURE HERE
+                onFinish("Error: $it")
             }
         }
     }
@@ -169,7 +176,10 @@ class UploadVideoViewModel @Inject constructor(
             .data
             .first()
             .toBuilder()
-            .objectsList
+            .objectsList.run {
+                Log.d("xdd", this.joinToString { "," })
+                this
+            }
             .filter { element -> element.filename == fileName }
             .size
             .run { this > 0 }
@@ -202,6 +212,60 @@ class UploadVideoViewModel @Inject constructor(
                         ).build()
                     }
             }
+        }
+    }
+
+
+    fun stressTest(videoUri: Uri, videoTitleInput: String) {
+
+        val inputStream = application
+            .contentResolver
+            .openInputStream(Uri.parse(videoUri.toString()))!!
+        val file = inputStream.readAllBytes()
+        inputStream.close()
+
+        viewModelScope.launch {
+
+            val videoTitle = videoTitleInput
+            val uploadVideoRequest = UploadVideoRequest(file, videoTitle)
+
+            val video = uploadVideoRequest.file.toRequestBody(
+                "video/mp4".toMediaTypeOrNull(),
+                0,
+                uploadVideoRequest.file.size
+            )
+            val fileVideo =
+                MultipartBody.Part.createFormData(
+                    "file",
+                    uploadVideoRequest.fileName + ".mp4",
+                    video
+                )
+
+            val retrofit = Retrofit
+                .Builder()
+                //.baseUrl("http://blur-server.default.54.221.201.107.sslip.io")
+                .baseUrl("http://blur-server.default.54.167.133.117.sslip.io")
+                .client(
+                    OkHttpClient.Builder()
+                        .connectTimeout(200, TimeUnit.SECONDS)
+                        .retryOnConnectionFailure(true)
+                        .writeTimeout(200, TimeUnit.SECONDS)
+                        .callTimeout(Duration.ofSeconds(200))
+                        .readTimeout(200, TimeUnit.SECONDS).build()
+                )
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build()
+                .create(APIService::class.java)
+
+            (0..<REQUESTS_NUM).forEach {
+                launch {
+                    val res = retrofit
+                        .postUploadVideo(fileVideo)
+                    println("$it:\n${res.body()}\n")
+                }
+
+            }
+
         }
     }
 }

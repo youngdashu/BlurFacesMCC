@@ -6,6 +6,7 @@ import agh.mobile.blurfacesmcc.ui.util.TopBar
 import android.Manifest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -92,16 +93,20 @@ private fun VideosContent(
 
             videoRecords.filter { !it.blured }.also {
                 items(it) { videoRecord ->
-                    Row {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         MyVideoElement(
                             modifier = Modifier
                                 .width(100.dp)
                                 .height(100.dp),
                             fileName = videoRecord.filename,
                             uri = videoRecord.uri,
+                            videoRecord = videoRecord,
                             backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
                             textColor = MaterialTheme.colorScheme.secondary
                         )
+                        Spacer(modifier = Modifier.width(10.dp))
                         runCatching {
                             workInfos[UUID.fromString(videoRecord.jobId)]?.let {
                                 CircularProgressIndicator(progress = it)
@@ -141,6 +146,7 @@ private fun VideosContent(
                             .height(100.dp),
                         fileName = videoRecord.filename,
                         uri = videoRecord.uri,
+                        videoRecord = videoRecord,
                         backgroundColor = MaterialTheme.colorScheme.primaryContainer,
                         textColor = MaterialTheme.colorScheme.primary
                     )

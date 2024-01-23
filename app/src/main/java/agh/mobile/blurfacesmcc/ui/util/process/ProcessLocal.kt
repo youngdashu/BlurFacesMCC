@@ -3,8 +3,8 @@ package agh.mobile.blurfacesmcc.ui.util.process
 import agh.mobile.blurfacesmcc.ConfidentialData
 import agh.mobile.blurfacesmcc.VideoRecord
 import agh.mobile.blurfacesmcc.ui.uploadvideo.FacesAtFrame
-import agh.mobile.blurfacesmcc.ui.uploadvideo.PerformClustering
 import agh.mobile.blurfacesmcc.ui.uploadvideo.recognize
+import agh.mobile.blurfacesmcc.ui.util.MonitorBattery
 import agh.mobile.blurfacesmcc.ui.util.videoDataStore
 import android.R
 import android.content.Context
@@ -12,12 +12,15 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
@@ -29,10 +32,16 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import okhttp3.internal.toImmutableList
 import java.io.File
 import java.io.IOException
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
 
 suspend fun processLocal(
     context: Context,
@@ -43,28 +52,43 @@ suspend fun processLocal(
     reportProgress: suspend (Float) -> Unit
 ): Result<Unit> {
 
-    val res = recognize(
-        context,
-        inputVideoUri,
-        0.1f,
-        confidentialData
-    )
-    println("recognize res")
-    println(res)
+    val monitorBattery = MonitorBattery(context)
+    val batteryStart = monitorBattery.batteryLevel
+
+    val timeSource = TimeSource.Monotonic
+    val startTime = timeSource.markNow()
+
+    val shouldProcessLocal = runCatching {
+        recognize(
+            context,
+            inputVideoUri,
+            0.1f,
+            confidentialData
+        )
+    }.onFailure {
+        Log.e("xdd", "Recognize failed!!!!")
+    }.getOrNull() ?: true
+    Log.d("xdd", "recognize res")
+    Log.d("xdd", "res: $shouldProcessLocal")
 
     val retriever = MediaMetadataRetriever()
 
     val outputDir =
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).toString()
 
-    val fileName = videoTitle.orEmpty().ifEmpty { "output" }
+    val fileName = videoTitle.orEmpty().ifEmpty {
+        val currentDateTime = LocalDateTime.now()
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")
+        currentDateTime.format(formatter)
+    }
 
     val fileNameWithDir = "$outputDir/$fileName.mp4"
     val outputFile = File(fileNameWithDir)
 
     val result = runCatching {
-
         retriever.setDataSource(context, inputVideoUri)
+
+        Log.d("xdd", "uri: $inputVideoUri")
 
         // Get the duration of the video in milliseconds
         val framesCount =
@@ -79,6 +103,8 @@ suspend fun processLocal(
             filename = fileName
             blured = false
             this.jobId = jobId.toString()
+            this.batteryStart = batteryStart
+            this.batteryCapacity = monitorBattery.batteryCapacity
         }
 
         val muxer = Muxer(
@@ -96,7 +122,7 @@ suspend fun processLocal(
 
         val chunkSize = (600F / frameBitmapSizeMBytes).roundToInt()
 
-        println("Chunk size: $chunkSize")
+        Log.d("xdd", "Chunk size: $chunkSize")
 
         val frameIndices = (0..<framesCount.toInt()).chunked(chunkSize)
 
@@ -109,11 +135,15 @@ suspend fun processLocal(
             e.printStackTrace()
         }
 
+        val workerPool: ExecutorService =
+            Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+
+
         coroutineScope {
             launch {
                 frameIndices.forEachIndexed { i, indicesToProcess ->
                     val detectionResults =
-                        getFaceDetection(indicesToProcess, context, inputVideoUri)
+                        getFaceDetection(indicesToProcess, context, inputVideoUri, workerPool)
                     val result = getBitmaps(context, detectionResults)
                     for (image in result) {
                         frameBuilder.createFrame(image)
@@ -122,24 +152,32 @@ suspend fun processLocal(
                     reportProgress(
                         (i + 1).toFloat() / frameIndices.size.toFloat()
                     )
+
                 }
             }
         }.join()
 
         frameBuilder.releaseVideoCodec()
         frameBuilder.releaseMuxer()
-        println("After Release")
+        Log.d("xdd", "after release")
     }.map {
         retriever.release()
     }.exceptionOrNull()
 
     val workResult = coroutineScope {
         async {
-            println("Start async")
+            val batteryEnd = monitorBattery.batteryLevel
+
+            val setParams: VideoRecord.Builder.() -> Unit = {
+                this.blured = true
+                this.batteryEnd = batteryEnd
+                this.endTime = (timeSource.markNow() - startTime).toString()
+            }
+
+            println("Start async, result: $result")
             if (result == null) {
                 context.updateVideoInDataStore(outputFile.toUri()) {
-                    println("Set blured")
-                    this.blured = true
+                    setParams()
                 }
                 Result.success(Unit)
             } else {
@@ -147,9 +185,9 @@ suspend fun processLocal(
                 File(fileNameWithDir).absoluteFile.delete()
                 context.updateVideoInDataStore(inputVideoUri) {
                     filename = "FAILED $fileName"
-                    blured = true
+                    setParams()
                 }
-                Result.failure(result)
+                Result.success(Unit)
             }
         }.await()
     }
@@ -208,32 +246,55 @@ private fun createRetriever(
 suspend fun getFaceDetection(
     indicesToProcess: List<Int>,
     context: Context,
-    videoUri: Uri
+    videoUri: Uri,
+    workerPool: ExecutorService = Executors.newFixedThreadPool(
+        Runtime.getRuntime().availableProcessors()
+    )
 ): List<FacesAtFrame> {
-
-    val highAccuracyOpts = FaceDetectorOptions.Builder()
-        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-        .build()
-    val detector = FaceDetection.getClient(highAccuracyOpts)
 
     val retriever = createRetriever(context, videoUri)
 
+    val timeSource = TimeSource.Monotonic
+    val startTime = timeSource.markNow()
+
+    val frames =
+        retriever.getFramesAtIndex(indicesToProcess[0], indicesToProcess.size).toImmutableList()
+
+    val endTime = timeSource.markNow() - startTime
+
+    Log.d("perf", "Collected frames $indicesToProcess time: $endTime")
+
     return try {
-        coroutineScope {
-            indicesToProcess.map { frameIndex ->
-                async {
-                    runCatching {
-                        retriever.getFrameAtIndex(frameIndex)!!
-                    }.getOrElse {
-                        getAverageOfFrameNeighbors(frameIndex, retriever)
-                    }?.let { frame ->
-                        FacesAtFrame(detector.process(frame, 0).await(), frameIndex, frame)
-                    }
+        val startMap = timeSource.markNow()
+
+        val res = coroutineScope {
+            val highAccuracyOpts = FaceDetectorOptions.Builder()
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+                .setExecutor {
+                    workerPool.submit(it)
                 }
+                .build()
+
+            val detector = FaceDetection.getClient(highAccuracyOpts)
+
+            val inputImages = frames.map { async { InputImage.fromBitmap(it, 0) } }.awaitAll()
+
+            val processedFrames = inputImages.map {
+                async {
+                    detector.process(it).await()
+                }
+            }.awaitAll()
+
+            processedFrames.zip(frames).zip(indicesToProcess).map {
+                FacesAtFrame(it.first.first, it.second, it.first.second)
             }
-        }.awaitAll().filterNotNull()
+
+        }
+        val endTime = timeSource.markNow() - startMap
+        Log.d("perf", "found faces time: $endTime")
+        res
     } catch (e: Exception) {
         Log.d("xdd", e.toString())
         throw e
@@ -310,4 +371,17 @@ private fun combineImages(bitmap1: Bitmap, bitmap2: Bitmap): Bitmap {
 
     resultBitmap.setPixels(resultPixels, 0, bitmap1.width, 0, 0, bitmap1.width, bitmap1.height)
     return resultBitmap
+}
+
+private fun selectTrack(extractor: MediaExtractor): Int {
+    // Select the first video track we find, ignore the rest.
+    val numTracks = extractor.trackCount
+    for (idx in 0 until numTracks) {
+        val format = extractor.getTrackFormat(idx)
+        val mime = format.getString(MediaFormat.KEY_MIME)
+        if (mime!!.startsWith("video/")) {
+            return idx
+        }
+    }
+    return -1
 }

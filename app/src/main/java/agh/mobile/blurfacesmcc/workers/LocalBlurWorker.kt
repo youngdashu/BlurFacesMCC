@@ -1,13 +1,13 @@
 package agh.mobile.blurfacesmcc.workers
 
-import agh.mobile.blurfacesmcc.ConfidentialData
+import agh.mobile.blurfacesmcc.ui.util.MonitorBattery
 import agh.mobile.blurfacesmcc.ui.util.confidentialDataArrayStore
 import agh.mobile.blurfacesmcc.ui.util.process.processLocal
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.net.Uri
+import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.lifecycle.viewModelScope
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
@@ -15,13 +15,10 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
 
 
 class LocalBlurWorker(
@@ -51,6 +48,12 @@ class LocalBlurWorker(
         println("conf data")
         println(confidentialData)
 
+        val monitorBattery = MonitorBattery(context)
+        val batteryStart = monitorBattery.batteryLevel
+
+        val timeSource = TimeSource.Monotonic
+        val startTime = timeSource.markNow()
+
         val processingResult = processLocal(
             context,
             videoUri,
@@ -72,6 +75,14 @@ class LocalBlurWorker(
                 }
             }
         }
+
+        val endTime = timeSource.markNow()
+
+        Log.d("time", "${endTime - startTime}")
+
+        val batteryEnd = monitorBattery.batteryPct
+
+        Log.d("xdd", "Baterry diff: ${batteryStart - batteryEnd}")
 
         return processingResult
             .getOrNull()?.let { Result.success() }
